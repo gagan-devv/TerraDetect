@@ -1,0 +1,290 @@
+Device ID: 000000
+API Key: 95b09474fa652e531112f58019e59e7129b6468815eab6013cf793cd4d4f19f2
+
+#include <WiFi.h>
+#include <WiFiManager.h>
+#include <HTTPClient.h>
+#include <EEPROM.h>
+#include <ArduinoOTA.h>
+#include <HardwareSerial.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include "esp_task_wdt.h"
+#include <WiFiClientSecure.h>
+
+#define API_KEY "95b09474fa652e531112f58019e59e7129b6468815eab6013cf793cd4d4f19f2"
+#define PREASSIGNED_DEVICE_ID "000000"
+#define DEVICE_ID_MAXLEN 7
+#define EEPROM_SIZE 64
+#define DEVICE_ID_ADDR 0
+
+#define pH_sensor_pin 39
+#define moisture_sensor_pin 36
+#define Temp_pin 25
+#define EC_Read 32
+#define ECPower 33
+#define LED_PIN 2
+#define DE_Control 4
+#define RE_Control 15
+
+HardwareSerial rs485(1);
+OneWire oneWire(Temp_pin);
+DallasTemperature sensors(&oneWire);
+
+const int R1 = 1000;
+const float Vin = 3.3;
+const float K = 0.27;
+const float Temp_Coef = 0.019;
+const float alpha = 0.1;
+uint8_t NPK_slave_address = 0x13;
+
+float emaPH = 7.0, emaMoisture = 50.0, emaTemp = 25.0, emaEC = 1.0;
+float emaN_scaled = 0.0, emaP_scaled = 0.0, emaK_scaled = 0.0;
+
+WiFiManagerParameter custom_device_id("device_id", "Enter Device ID (6-char)", "", DEVICE_ID_MAXLEN);
+String deviceID = "";
+unsigned long lastSendTime = 0;
+const unsigned long sendInterval = 60000;
+
+void blinkErrorLED(int times, int duration = 300) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(LED_PIN, HIGH);
+    delay(duration);
+    digitalWrite(LED_PIN, LOW);
+    delay(duration);
+  }
+}
+
+void saveDeviceID(const String &id) {
+  EEPROM.begin(EEPROM_SIZE);
+  for (int i = 0; i < DEVICE_ID_MAXLEN; i++) {
+    char c = (i < id.length()) ? id[i] : '\0';
+    EEPROM.write(DEVICE_ID_ADDR + i, c);
+  }
+  EEPROM.commit();
+  EEPROM.end();
+}
+
+String loadDeviceID() {
+  EEPROM.begin(EEPROM_SIZE);
+  char buf[DEVICE_ID_MAXLEN];
+  for (int i = 0; i < DEVICE_ID_MAXLEN; i++) {
+    buf[i] = EEPROM.read(DEVICE_ID_ADDR + i);
+  }
+  buf[DEVICE_ID_MAXLEN - 1] = '\0';
+  EEPROM.end();
+  return String(buf);
+}
+
+bool validateDeviceID(const char* device_id) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[Validation] Not connected to WiFi!");
+    blinkErrorLED(3);
+    return false;
+  }
+  HTTPClient http;
+  http.begin("https://terradetect.onrender.com/api/check_device_id");
+  http.addHeader("Content-Type", "application/json");
+  String payload = "{\"device_id\":\"" + String(device_id) + "\"}";
+  int code = http.POST(payload);
+  String response = http.getString();
+  http.end();
+  Serial.printf("[Validation] Code: %d, Response: %s\n", code, response.c_str());
+  if (!(code == 200 && response.indexOf("\"registered\":true") != -1)) {
+    blinkErrorLED(5);
+    return false;
+  }
+  return true;
+}
+
+float mapPH(float analogValue) {
+  const float coeffA = -24.71;
+  const float coeffB = 195.15;
+  float ph = coeffA * log(analogValue) + coeffB;
+  return constrain(ph, 0.0, 14.0);
+}
+
+float readMoisture() {
+  int moistureValue = analogRead(moisture_sensor_pin);
+  float moisturePercentage = map(moistureValue, 2500, 1000, 0, 100);
+  return constrain(moisturePercentage, 0, 100);
+}
+
+float readTemperature() {
+  sensors.requestTemperatures();
+  float temperature = sensors.getTempCByIndex(0);
+  return constrain(temperature, -10.00, 60.00);
+}
+
+float readEC(float tempC) {
+  digitalWrite(ECPower, HIGH);
+  delay(100);
+  int raw = analogRead(EC_Read);
+  delay(100);
+  raw = analogRead(EC_Read);
+  digitalWrite(ECPower, LOW);
+  if (raw == 0) return 0.00;
+  float Vdrop = (Vin * raw) / 4095.0;
+  if (Vin - Vdrop == 0) return 0.00;
+  float Rwater = (Vdrop * R1) / (Vin - Vdrop);
+  float ec = 1000 / (Rwater * K);
+  float ec25 = ec / (1 + Temp_Coef * (tempC - 25.0));
+  return ec25;
+}
+
+void readNPK(float &N_scaled, float &P_scaled, float &K_scaled) {
+  uint8_t request[] = {NPK_slave_address, 0x03, 0x00, 0x00, 0x00, 0x06};
+  uint16_t crc = 0xFFFF;
+  for (int i = 0; i < 6; i++) {
+    crc ^= request[i];
+    for (int j = 0; j < 8; j++)
+      crc = (crc >> 1) ^ (crc & 1 ? 0xA001 : 0);
+  }
+  request[6] = crc & 0xFF;
+  request[7] = (crc >> 8) & 0xFF;
+
+  digitalWrite(DE_Control, HIGH);
+  digitalWrite(RE_Control, HIGH);
+  delay(2);
+  rs485.write(request, 8);
+  rs485.flush();
+  delay(2);
+  digitalWrite(DE_Control, LOW);
+  digitalWrite(RE_Control, LOW);
+  delay(300);
+
+  if (rs485.available() >= 16) {
+    uint8_t response[16];
+    for (int i = 0; i < 16; i++)
+      response[i] = rs485.read();
+    int N_raw = (response[9] << 8) | response[10];
+    int P_raw = (response[11] << 8) | response[12];
+    int K_raw = (response[13] << 8) | response[14];
+    N_scaled = (N_raw / 25000.0) * 150.0;
+    P_scaled = (P_raw / 8000.0) * 200.0;
+    K_scaled = (K_raw / 28000.0) * 240.0;
+  } else {
+    N_scaled = P_scaled = K_scaled = -1.0;
+  }
+  while (rs485.available()) rs485.read();
+}
+
+float updateEMA(float prev, float curr) {
+  return alpha * curr + (1 - alpha) * prev;
+}
+
+void sendSensorPayload() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[Data] Not connected to WiFi!");
+    blinkErrorLED(2);
+    return;
+  }
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  http.begin(client, "https://terradetect.onrender.com/api/esp32");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-api-key", API_KEY);
+
+  String payload = "{";
+  payload += "\"device_id\":\"" + deviceID + "\",";
+  payload += "\"temperature\":" + String(emaTemp, 2) + ",";
+  payload += "\"ph\":" + String(emaPH, 2) + ",";
+  payload += "\"humidity\":" + String(emaMoisture, 1) + ",";
+  payload += "\"ec\":" + String(emaEC, 2) + ",";
+  payload += "\"N\":" + String(emaN_scaled) + ",";
+  payload += "\"P\":" + String(emaP_scaled) + ",";
+  payload += "\"K\":" + String(emaK_scaled) + ",";
+  payload += "\"moisture\":" + String(emaMoisture);
+  payload += "}";
+
+  Serial.println("[Data] Sending payload: " + payload);
+  int code = http.POST(payload);
+  String response = http.getString();
+  http.end();
+  Serial.printf("[Data] Code: %d, Response: %s\n", code, response.c_str());
+  if (code < 200 || code >= 300) blinkErrorLED(4);
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  rs485.begin(9600, SERIAL_8N1, 16, 17);
+  pinMode(DE_Control, OUTPUT);
+  pinMode(RE_Control, OUTPUT);
+  pinMode(EC_Read, INPUT);
+  pinMode(ECPower, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(DE_Control, LOW);
+  digitalWrite(RE_Control, LOW);
+  sensors.begin();
+  ArduinoOTA.begin();
+
+  deviceID = loadDeviceID();
+  WiFiManager wm;
+  if (deviceID.length() > 0) custom_device_id.setValue(deviceID.c_str(), DEVICE_ID_MAXLEN);
+  wm.addParameter(&custom_device_id);
+
+  if (!wm.autoConnect("TerraDetect-Setup")) {
+    Serial.println("[WiFiManager] Failed to connect. Restarting...");
+    blinkErrorLED(6);
+    delay(3000);
+    ESP.restart();
+  }
+
+  deviceID = String(custom_device_id.getValue());
+  if (deviceID.length() != 6 || deviceID != String(PREASSIGNED_DEVICE_ID)) {
+    Serial.println("[2FA] Device ID must be 6-char and match preassigned ID. Resetting...");
+    blinkErrorLED(7);
+    wm.resetSettings();
+    delay(3000);
+    ESP.restart();
+  }
+
+  if (!validateDeviceID(deviceID.c_str())) {
+    Serial.println("[Validation] Device ID not registered. Resetting...");
+    wm.resetSettings();
+    delay(3000);
+    ESP.restart();
+  }
+
+  saveDeviceID(deviceID);
+
+  esp_task_wdt_config_t wdt_config = {
+    .timeout_ms = 10000,
+    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+    .trigger_panic = true,
+  };
+  esp_task_wdt_init(&wdt_config);
+  esp_task_wdt_add(NULL);
+
+  lastSendTime = millis();
+}
+
+void loop() {
+  esp_task_wdt_reset();
+  ArduinoOTA.handle();
+
+  for (int i = 0; i < 12; i++) {
+    float pH = mapPH(analogRead(pH_sensor_pin));
+    float moisture = readMoisture();
+    float temp = readTemperature();
+    float ec = readEC(temp);
+    float N, P, K;
+    readNPK(N, P, K);
+
+    emaPH = updateEMA(emaPH, pH);
+    emaMoisture = updateEMA(emaMoisture, moisture);
+    emaTemp = updateEMA(emaTemp, temp);
+    emaEC = updateEMA(emaEC, ec);
+    emaN_scaled = updateEMA(emaN_scaled, N);
+    emaP_scaled = updateEMA(emaP_scaled, P);
+    emaK_scaled = updateEMA(emaK_scaled, K);
+    delay(5000);
+  }
+
+  sendSensorPayload();
+  delay(sendInterval);
+}
+
+
