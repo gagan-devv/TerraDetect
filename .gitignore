@@ -1,4 +1,5 @@
 Software/.env
 node_modules
 
-secrets.hsketches/secrets.h
+secrets.h
+sketches/secrets.h
