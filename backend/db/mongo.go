@@ -37,14 +37,22 @@ func Connect(uri, dbName string) (*Database, error) {
 		TokenDenyList: d.Collection("token_deny_list"),
 	}
 
-	database.SensorData.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.D{{Key: "device_id", Value: 1}, {Key: "timestamp", Value: -1}},
+	_, _ = database.SensorData.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "device_id", Value: 1}, 
+			{Key: "timestamp", Value: -1},
+		},
 	})
 
 	ttl := int32(0)
-	database.TokenDenyList.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.D{{Key: "expires_at", Value: 1}},
+	_, _ = database.TokenDenyList.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "expires_at", Value: 1}},
 		Options: &options.IndexOptions{ExpireAfterSeconds: &ttl},
+	})
+
+	_, _ = database.Users.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "username", Value: 1}},
+		Options: options.Index().SetUnique(true),
 	})
 
 	return database, nil

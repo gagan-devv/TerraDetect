@@ -3,11 +3,14 @@ module github.com/gagan-devv/terradetect/backend
 go 1.26.1
 
 require (
+	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/joho/godotenv v1.5.1
 	github.com/ulule/limiter/v3 v3.11.2
+	github.com/yalue/onnxruntime_go v1.27.0
 	go.mongodb.org/mongo-driver v1.17.9
+	golang.org/x/crypto v0.49.0
 )
 
 require (
@@ -43,7 +46,6 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect

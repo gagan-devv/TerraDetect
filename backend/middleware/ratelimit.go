@@ -8,7 +8,10 @@ import (
 )
 
 func NewLimiter (rateStr string) gin.HandlerFunc {
-	rate, _ := limiter.NewRateFromFormatted(rateStr)
+	rate, err := limiter.NewRateFromFormatted(rateStr)
+	if err != nil {
+		panic("invalid rate format: " + rateStr)
+	}
 	store := memory.NewStore()
 	instance := limiter.New(store, rate)
 	return ginlimiter.NewMiddleware(instance)
