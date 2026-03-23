@@ -13,6 +13,8 @@ type Config struct {
 	SecretKey     string
 	WeatherAPIKey string
 	Port          string
+	CropModelPath string
+	FertilizerModelPath string
 }
 
 func Load() *Config {
@@ -24,6 +26,8 @@ func Load() *Config {
 		SecretKey:     mustGet("SECRET_KEY"),
 		WeatherAPIKey: mustGet("WEATHER_API_KEY"),
 		Port:          getOrDefault("PORT", "8080"),
+		CropModelPath: getOrDefault("CROP_MODEL_PATH", "../ml/crop-model.onnx"),
+		FertilizerModelPath: getOrDefault("FERTILIZER_MODEL_PATH", "../ml/fertilizer-model.onnx"),
 	}
 
 	return cfg

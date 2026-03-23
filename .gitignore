@@ -1,5 +1,7 @@
-Software/.env
 node_modules
 
 secrets.h
 sketches/secrets.h
+
+.env
+.vscode
