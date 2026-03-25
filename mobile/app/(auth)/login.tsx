@@ -1,70 +1,101 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
+import {
+    View, Text, TextInput, TouchableOpacity, Alert, ScrollView,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { api } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const loginToStore = useAuthStore((state) => state.login);
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [deviceId, setDeviceId] = useState("");
+    const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password)
-      return Alert.alert("Error", "Please fill in all fields");
+    const router = useRouter();
+    const loginToStore = useAuthStore((state) => state.login);
 
-    setLoading(true);
-    try {
-      const data = await api.login({ email, password });
+    const handleLogin = async () => {
+        if (!username || !password || !deviceId)
+            return Alert.alert("Error", "Please fill in all fields");
 
-      // Your Go backend returns { access_token, refresh_token, user: { username, device_id } }
-      await loginToStore(
-        { accessToken: data.access_token, refreshToken: data.refresh_token },
-        { username: data.user.username, deviceId: data.user.device_id },
-      );
+        setLoading(true);
+        try {
+            const data = await api.login({ username, password, device_id: deviceId });
 
-      router.replace("/(app)/dashboard");
-    } catch (err: any) {
-      Alert.alert("Login Failed", err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+            await loginToStore(
+                { accessToken: data.access_token, refreshToken: data.refresh_token },
+                { username: data.user.username, deviceId: data.user.device_id },
+            );
 
-  return (
-    <View className="flex-1 bg-white justify-center px-8">
-      <Text className="text-3xl font-bold text-green-700 mb-8 text-center">
-        TerraDetect
-      </Text>
+            router.replace("/(app)/dashboard");
+        } catch (err: any) {
+            Alert.alert("Login Failed", err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      <View className="space-y-4">
-        <TextInput
-          className="bg-gray-100 p-4 rounded-xl text-gray-800"
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-        />
-        <TextInput
-          className="bg-gray-100 p-4 rounded-xl text-gray-800"
-          placeholder="Password"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <TouchableOpacity
-          onPress={handleLogin}
-          disabled={loading}
-          className={`p-4 rounded-xl items-center ${loading ? "bg-green-300" : "bg-green-600"}`}
+    return (
+        <ScrollView
+            className="flex-1 bg-white"
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 32 }}
+            keyboardShouldPersistTaps="handled"
         >
-          <Text className="text-white font-semibold text-lg">
-            {loading ? "Authenticating..." : "Sign In"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+            <Text className="text-3xl font-bold text-green-700 mb-2 text-center">
+                TerraDetect
+            </Text>
+            <Text className="text-gray-400 text-center mb-8 text-sm">
+                Sign in to your farm dashboard
+            </Text>
+
+            <View className="space-y-3">
+                <TextInput
+                    className="bg-gray-100 p-4 rounded-xl text-gray-800"
+                    placeholder="Username"
+                    value={username}
+                    onChangeText={setUsername}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                />
+                <TextInput
+                    className="bg-gray-100 p-4 rounded-xl text-gray-800"
+                    placeholder="Password"
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                />
+                <TextInput
+                    className="bg-gray-100 p-4 rounded-xl text-gray-800"
+                    placeholder="Device ID (e.g. ABC123)"
+                    value={deviceId}
+                    onChangeText={(v) => setDeviceId(v.toUpperCase().trim())}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={6}
+                />
+
+                <TouchableOpacity
+                    onPress={handleLogin}
+                    disabled={loading}
+                    className={`p-4 rounded-xl items-center mt-2 ${loading ? "bg-green-300" : "bg-green-600"
+                        }`}
+                >
+                    <Text className="text-white font-semibold text-lg">
+                        {loading ? "Signing in..." : "Sign In"}
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => router.push("/(auth)/register")}
+                    className="items-center py-3"
+                >
+                    <Text className="text-gray-500 text-sm">
+                        No account?{" "}
+                        <Text className="text-green-600 font-semibold">Register here</Text>
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        </ScrollView>
+    );
 }
