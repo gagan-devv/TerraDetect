@@ -1,20 +1,18 @@
 import React, { useState } from 'react'
 import {
-    View, Text, ScrollView, TextInput, TouchableOpacity,
-    ActivityIndicator, Alert,
+    View, Text, ScrollView, TextInput,
+    TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { LinearGradient } from 'expo-linear-gradient'
 import { api } from '../../lib/api'
+import { getErrorMessage } from '../../lib/error'
 import { useAuthStore } from '../../store/authStore'
 import { useSensorStore } from '../../store/sensorStore'
 
 type Mode = 'crop' | 'suitability' | 'fertilizer'
 
 const SOIL_TYPES = ['Black', 'Clayey', 'Loamy', 'Red', 'Sandy']
-const CROPS = [
-    'Rice', 'Wheat', 'Maize', 'Cotton', 'Sugarcane',
-    'Banana', 'Mango', 'Apple', 'Grapes', 'Jute', 'Coffee',
-]
+const CROPS = ['Rice', 'Wheat', 'Maize', 'Cotton', 'Sugarcane', 'Banana', 'Mango', 'Apple', 'Grapes', 'Jute', 'Coffee']
 
 interface FormValues {
     N: string; P: string; K: string
@@ -29,78 +27,111 @@ const defaultForm: FormValues = {
     moisture: '', cropName: 'Wheat', soilType: 'Black',
 }
 
-interface FieldInputProps {
-    label: string
-    value: string
-    onChange: (v: string) => void
-    unit: string
-    placeholder?: string
+interface CropResult { recommended_crop: string; confidence: number }
+interface SuitabilityTableRow { parameter: string; recommended: number; observed: number; status: string }
+interface SuitabilityResult { crop: string; suitability_score: number; table: SuitabilityTableRow[] }
+interface FertilizerResult {
+    fertilizer: string; composition: string; application: string
+    nitrogen_advice?: string; phosphorus_advice?: string; potassium_advice?: string
+}
+type PredictResult = CropResult | SuitabilityResult | FertilizerResult | null
+
+function isCropResult(r: PredictResult): r is CropResult {
+    return r !== null && 'recommended_crop' in r
+}
+function isSuitabilityResult(r: PredictResult): r is SuitabilityResult {
+    return r !== null && 'suitability_score' in r
+}
+function isFertilizerResult(r: PredictResult): r is FertilizerResult {
+    return r !== null && 'fertilizer' in r
 }
 
-function FieldInput({ label, value, onChange, unit, placeholder }: FieldInputProps) {
+// Rounded-full field input matching stitch design
+function FieldInput({
+    label, value, onChange, unit, placeholder,
+}: {
+    label: string; value: string; onChange: (v: string) => void; unit: string; placeholder?: string
+}) {
     return (
-        <View className="mb-3">
-            <Text className="text-gray-600 text-sm font-medium mb-1">{label}</Text>
-            <View className="flex-row items-center bg-gray-100 rounded-xl overflow-hidden">
+        <View className="mb-4">
+            <Text className="font-label font-medium text-sm text-on-surface-variant mb-2 ml-4">{label}</Text>
+            <View className="bg-surface-container-high rounded-full flex-row items-center px-5 py-4">
                 <TextInput
-                    className="flex-1 px-4 py-3 text-gray-800"
+                    className="flex-1 font-body text-base text-on-surface"
                     value={value}
                     onChangeText={onChange}
                     keyboardType="numeric"
                     placeholder={placeholder ?? '0'}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor="#6e7b6c"
                 />
-                <Text className="px-3 text-gray-400 text-sm">{unit}</Text>
+                <Text className="text-on-surface-variant text-sm font-label ml-2">{unit}</Text>
             </View>
         </View>
     )
 }
 
-// ── Result renderers ──────────────────────────────────────────────────────────
-
-function CropResult({ result }: { result: any }) {
+function CropResultView({ result }: { result: CropResult }) {
+    const confidence = result.confidence ?? 0
     return (
-        <View className="bg-green-50 border border-green-200 rounded-2xl p-5 mt-4">
-            <Text className="text-green-800 font-bold text-lg capitalize">
-                {result.recommended_crop}
-            </Text>
-            <Text className="text-green-600 text-sm mt-1">
-                Confidence: {result.confidence?.toFixed(1)}%
-            </Text>
+        <View className="bg-primary/5 rounded-[1.8rem] p-1 mt-2">
+            <View className="bg-surface-container-lowest p-6 rounded-[1.5rem]">
+                <View className="flex-row justify-between items-start mb-4">
+                    <View>
+                        <View className="bg-primary/10 rounded-sm px-3 py-1 self-start mb-2">
+                            <Text className="font-label text-[10px] uppercase tracking-widest font-bold text-primary">Top Match</Text>
+                        </View>
+                        <Text className="font-headline font-extrabold text-5xl text-primary capitalize">
+                            {result.recommended_crop}
+                        </Text>
+                    </View>
+                    <View className="items-end">
+                        <Text className="font-headline font-black text-4xl text-on-surface">
+                            {confidence.toFixed(0)}%
+                        </Text>
+                        <Text className="text-xs font-label text-on-surface-variant uppercase tracking-tighter">
+                            Confidence
+                        </Text>
+                    </View>
+                </View>
+                {/* Progress bar */}
+                <View className="flex-row items-center gap-3">
+                    <View className="flex-1 bg-surface-container rounded-full h-3 overflow-hidden">
+                        <View
+                            className="bg-primary h-full rounded-full"
+                            style={{ width: `${Math.min(confidence, 100)}%` }}
+                        />
+                    </View>
+                    <Text className="text-primary text-lg">✓</Text>
+                </View>
+            </View>
         </View>
     )
 }
 
-function SuitabilityResult({ result }: { result: any }) {
+function SuitabilityResultView({ result }: { result: SuitabilityResult }) {
     return (
-        <View className="mt-4">
-            <View className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-3">
-                <Text className="text-blue-800 font-bold text-base capitalize">{result.crop}</Text>
-                <Text className="text-blue-600 text-sm">
-                    Suitability score: {result.suitability_score?.toFixed(1)}%
+        <View className="mt-4 space-y-3">
+            <View className="bg-surface-container-lowest p-6 rounded-lg border-l-4 border-secondary">
+                <Text className="font-headline font-bold text-2xl text-secondary capitalize mb-1">
+                    {result.crop}
+                </Text>
+                <Text className="text-on-surface-variant text-sm">
+                    Suitability Score: <Text className="font-bold text-on-surface">{result.suitability_score?.toFixed(1)}%</Text>
                 </Text>
             </View>
-
-            {result.table?.map((row: any, i: number) => (
+            {result.table?.map((row, i) => (
                 <View
                     key={i}
-                    className={`flex-row justify-between items-center px-4 py-2 rounded-xl mb-1 ${row.status === 'optimal'
-                            ? 'bg-green-50'
-                            : row.status === 'low'
-                                ? 'bg-yellow-50'
-                                : 'bg-red-50'
-                        }`}
+                    className="flex-row justify-between items-center px-4 py-3 rounded-lg"
+                    style={{
+                        backgroundColor: row.status === 'optimal' ? 'rgba(0,107,44,0.08)' :
+                            row.status === 'low' ? 'rgba(130,81,0,0.08)' : 'rgba(186,26,26,0.08)'
+                    }}
                 >
-                    <Text className="text-gray-700 text-sm font-medium w-32">{row.parameter}</Text>
-                    <Text className="text-gray-500 text-xs">{row.observed} / {row.recommended}</Text>
-                    <Text
-                        className={`text-xs font-semibold ${row.status === 'optimal'
-                                ? 'text-green-600'
-                                : row.status === 'low'
-                                    ? 'text-yellow-600'
-                                    : 'text-red-600'
-                            }`}
-                    >
+                    <Text className="font-body text-sm font-medium text-on-surface">{row.parameter}</Text>
+                    <Text className="text-on-surface-variant text-xs font-label">{row.observed} / {row.recommended}</Text>
+                    <Text className={`text-xs font-bold font-label uppercase tracking-wider ${row.status === 'optimal' ? 'text-primary' : row.status === 'low' ? 'text-tertiary' : 'text-error'
+                        }`}>
                         {row.status}
                     </Text>
                 </View>
@@ -109,34 +140,44 @@ function SuitabilityResult({ result }: { result: any }) {
     )
 }
 
-function FertilizerResult({ result }: { result: any }) {
+function FertilizerResultView({ result }: { result: FertilizerResult }) {
     return (
-        <View className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mt-4">
-            <Text className="text-amber-800 font-bold text-lg">{result.fertilizer}</Text>
-            <Text className="text-amber-600 text-sm mt-0.5">Composition: {result.composition}</Text>
-            <Text className="text-gray-600 text-sm mt-2">{result.application}</Text>
-
-            {(result.nitrogen_advice || result.phosphorus_advice || result.potassium_advice) && (
-                <View className="mt-3 space-y-1">
-                    {result.nitrogen_advice && (
-                        <Text className="text-gray-600 text-xs">• {result.nitrogen_advice}</Text>
-                    )}
-                    {result.phosphorus_advice && (
-                        <Text className="text-gray-600 text-xs">• {result.phosphorus_advice}</Text>
-                    )}
-                    {result.potassium_advice && (
-                        <Text className="text-gray-600 text-xs">• {result.potassium_advice}</Text>
-                    )}
+        <View className="mt-4 space-y-4">
+            <View className="bg-surface-container-lowest p-6 rounded-lg border-l-4 border-tertiary">
+                <View className="flex-row items-center gap-3 mb-3">
+                    <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: 'rgba(130,81,0,0.10)' }}>
+                        <Text className="text-xl">🧪</Text>
+                    </View>
+                    <View>
+                        <Text className="font-headline font-bold text-lg text-on-surface">{result.fertilizer}</Text>
+                        <Text className="text-on-surface-variant text-xs font-label">{result.composition}</Text>
+                    </View>
+                </View>
+                <Text className="text-on-surface-variant text-sm font-body leading-relaxed">{result.application}</Text>
+            </View>
+            {result.nitrogen_advice && (
+                <View className="bg-surface-container-lowest p-5 rounded-lg border-l-4 border-primary">
+                    <Text className="font-headline font-bold text-base mb-1">Nitrogen Advice</Text>
+                    <Text className="text-on-surface-variant text-sm font-body">{result.nitrogen_advice}</Text>
+                </View>
+            )}
+            {result.phosphorus_advice && (
+                <View className="bg-surface-container-lowest p-5 rounded-lg border-l-4 border-secondary">
+                    <Text className="font-headline font-bold text-base mb-1">Phosphorus Advice</Text>
+                    <Text className="text-on-surface-variant text-sm font-body">{result.phosphorus_advice}</Text>
+                </View>
+            )}
+            {result.potassium_advice && (
+                <View className="bg-surface-container-lowest p-5 rounded-lg border-l-4 border-tertiary">
+                    <Text className="font-headline font-bold text-base mb-1">Potassium Advice</Text>
+                    <Text className="text-on-surface-variant text-sm font-body">{result.potassium_advice}</Text>
                 </View>
             )}
         </View>
     )
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
-
 export default function PredictScreen() {
-    const router = useRouter()
     const { accessToken } = useAuthStore()
     const { latest: sensorData } = useSensorStore()
 
@@ -144,25 +185,22 @@ export default function PredictScreen() {
     const [form, setForm] = useState<FormValues>(defaultForm)
     const [useSensor, setUseSensor] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const [result, setResult] = useState<any>(null)
+    const [result, setResult] = useState<PredictResult>(null)
 
-    const set = (field: keyof FormValues) => (value: string) =>
+    const setField = (field: keyof FormValues) => (value: string) =>
         setForm((prev) => ({ ...prev, [field]: value }))
 
     const fillFromSensor = () => {
-        if (!sensorData) {
-            Alert.alert('No sensor data', 'Fetch data from the dashboard first.')
-            return
-        }
+        if (!sensorData) return Alert.alert('No sensor data', 'Fetch data from the dashboard first.')
         setForm((prev) => ({
             ...prev,
-            N: String(sensorData.N.toFixed(1)),
-            P: String(sensorData.P.toFixed(1)),
-            K: String(sensorData.K.toFixed(1)),
-            temperature: String(sensorData.temperature.toFixed(1)),
-            humidity: String(sensorData.humidity.toFixed(1)),
-            ph: String(sensorData.ph.toFixed(1)),
-            moisture: String(sensorData.moisture.toFixed(1)),
+            N: sensorData.N.toFixed(1),
+            P: sensorData.P.toFixed(1),
+            K: sensorData.K.toFixed(1),
+            temperature: sensorData.temperature.toFixed(1),
+            humidity: sensorData.humidity.toFixed(1),
+            ph: sensorData.ph.toFixed(1),
+            moisture: sensorData.moisture.toFixed(1),
         }))
         setUseSensor(true)
     }
@@ -171,203 +209,204 @@ export default function PredictScreen() {
         if (!accessToken) return
         setIsLoading(true)
         setResult(null)
-
         const source = useSensor ? 'sensor' : 'manual'
         const num = (v: string) => parseFloat(v) || 0
 
         try {
-            let res: any
-
+            let res: PredictResult
             if (mode === 'crop') {
                 res = await api.predictCrop(accessToken, {
-                    source,
-                    N: num(form.N), P: num(form.P), K: num(form.K),
-                    temperature: num(form.temperature),
-                    humidity: num(form.humidity),
-                    ph: num(form.ph),
-                    rainfall: num(form.rainfall),
+                    source, N: num(form.N), P: num(form.P), K: num(form.K),
+                    temperature: num(form.temperature), humidity: num(form.humidity),
+                    ph: num(form.ph), rainfall: num(form.rainfall),
                 })
             } else if (mode === 'suitability') {
                 if (!form.cropName) return Alert.alert('Error', 'Select a crop first.')
                 res = await api.predictSuitability(accessToken, {
-                    source,
-                    crop_name: form.cropName,
+                    source, crop_name: form.cropName,
                     N: num(form.N), P: num(form.P), K: num(form.K),
-                    temperature: num(form.temperature),
-                    humidity: num(form.humidity),
-                    ph: num(form.ph),
-                    rainfall: num(form.rainfall),
+                    temperature: num(form.temperature), humidity: num(form.humidity),
+                    ph: num(form.ph), rainfall: num(form.rainfall),
                 })
             } else {
                 res = await api.predictFertilizer(accessToken, {
-                    source,
-                    crop_name: form.cropName,
-                    soil_type: form.soilType,
+                    source, crop_name: form.cropName, soil_type: form.soilType,
                     N: num(form.N), P: num(form.P), K: num(form.K),
-                    temperature: num(form.temperature),
-                    humidity: num(form.humidity),
-                    ph: num(form.ph),
-                    moisture: num(form.moisture),
-                    rainfall: num(form.rainfall),
+                    temperature: num(form.temperature), humidity: num(form.humidity),
+                    ph: num(form.ph), moisture: num(form.moisture), rainfall: num(form.rainfall),
                 })
             }
-
             setResult(res)
-        } catch (err: any) {
-            Alert.alert('Prediction failed', err.message)
+        } catch (err) {
+            Alert.alert('Prediction failed', getErrorMessage(err))
         } finally {
             setIsLoading(false)
         }
     }
 
-    const modeConfig = {
-        crop: { label: 'Best Crop', color: 'bg-green-600' },
-        suitability: { label: 'Suitability', color: 'bg-blue-600' },
-        fertilizer: { label: 'Fertilizer', color: 'bg-amber-600' },
-    }
+    const tabs: { id: Mode; label: string }[] = [
+        { id: 'crop', label: 'Crop Recommendation' },
+        { id: 'suitability', label: 'Suitability Analysis' },
+        { id: 'fertilizer', label: 'Fertilizer Rec.' },
+    ]
 
     return (
-        <ScrollView className="flex-1 bg-gray-50">
-            {/* Header */}
-            <View className="bg-green-700 px-6 pt-14 pb-5">
-                <View className="flex-row items-center gap-3 mb-4">
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Text className="text-white text-2xl mr-2">←</Text>
-                    </TouchableOpacity>
-                    <Text className="text-white text-xl font-bold">ML Predictions</Text>
+        <View className="flex-1 bg-surface">
+            {/* Glassmorphic Top Nav */}
+            <View className="bg-white/80 shadow-sm px-6 py-4 flex-row justify-between items-center pt-12">
+                <View className="flex-row items-center gap-3">
+                    <Text className="text-primary text-2xl">🌱</Text>
+                    <Text className="font-headline font-black text-2xl text-primary tracking-tight">TerraDetect</Text>
                 </View>
-
-                {/* Mode tabs */}
-                <View className="flex-row bg-green-800 rounded-xl p-1 gap-1">
-                    {(['crop', 'suitability', 'fertilizer'] as Mode[]).map((m) => (
-                        <TouchableOpacity
-                            key={m}
-                            onPress={() => { setMode(m); setResult(null) }}
-                            className={`flex-1 py-2 rounded-lg items-center ${mode === m ? modeConfig[m].color : 'bg-transparent'
-                                }`}
-                        >
-                            <Text className={`text-xs font-semibold ${mode === m ? 'text-white' : 'text-green-300'}`}>
-                                {modeConfig[m].label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                <Text className="text-on-surface-variant text-2xl">🔔</Text>
             </View>
 
-            <View className="px-4 pt-4 pb-8">
-                {/* Fill from sensor button */}
-                {sensorData && (
-                    <TouchableOpacity
-                        onPress={fillFromSensor}
-                        className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-4 flex-row items-center justify-between"
-                    >
-                        <Text className="text-teal-700 font-medium text-sm">Use live sensor data</Text>
-                        <Text className="text-teal-500 text-xs">Tap to fill</Text>
-                    </TouchableOpacity>
-                )}
-
-                {/* Crop selector for suitability and fertilizer */}
-                {(mode === 'suitability' || mode === 'fertilizer') && (
-                    <View className="mb-3">
-                        <Text className="text-gray-600 text-sm font-medium mb-1">Crop</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-1">
-                            {CROPS.map((crop) => (
-                                <TouchableOpacity
-                                    key={crop}
-                                    onPress={() => set('cropName')(crop)}
-                                    className={`mx-1 px-4 py-2 rounded-xl border ${form.cropName === crop
-                                            ? 'bg-green-600 border-green-600'
-                                            : 'bg-white border-gray-200'
-                                        }`}
-                                >
-                                    <Text className={`text-sm font-medium ${form.cropName === crop ? 'text-white' : 'text-gray-700'}`}>
-                                        {crop}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                )}
-
-                {/* Soil type selector for fertilizer */}
-                {mode === 'fertilizer' && (
-                    <View className="mb-3">
-                        <Text className="text-gray-600 text-sm font-medium mb-1">Soil type</Text>
-                        <View className="flex-row flex-wrap gap-2">
-                            {SOIL_TYPES.map((soil) => (
-                                <TouchableOpacity
-                                    key={soil}
-                                    onPress={() => set('soilType')(soil)}
-                                    className={`px-4 py-2 rounded-xl border ${form.soilType === soil
-                                            ? 'bg-amber-500 border-amber-500'
-                                            : 'bg-white border-gray-200'
-                                        }`}
-                                >
-                                    <Text className={`text-sm font-medium ${form.soilType === soil ? 'text-white' : 'text-gray-700'}`}>
-                                        {soil}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-                )}
-
-                {/* NPK inputs */}
-                <View className="flex-row gap-2">
-                    <View className="flex-1">
-                        <FieldInput label="Nitrogen (N)" value={form.N} onChange={set('N')} unit="kg/ha" />
-                    </View>
-                    <View className="flex-1">
-                        <FieldInput label="Phosphorus (P)" value={form.P} onChange={set('P')} unit="kg/ha" />
-                    </View>
-                    <View className="flex-1">
-                        <FieldInput label="Potassium (K)" value={form.K} onChange={set('K')} unit="kg/ha" />
-                    </View>
-                </View>
-
-                <View className="flex-row gap-2">
-                    <View className="flex-1">
-                        <FieldInput label="Temperature" value={form.temperature} onChange={set('temperature')} unit="°C" />
-                    </View>
-                    <View className="flex-1">
-                        <FieldInput label="Humidity" value={form.humidity} onChange={set('humidity')} unit="%" />
-                    </View>
-                </View>
-
-                <View className="flex-row gap-2">
-                    <View className="flex-1">
-                        <FieldInput label="Soil pH" value={form.ph} onChange={set('ph')} unit="0–14" />
-                    </View>
-                    <View className="flex-1">
-                        <FieldInput label="Rainfall" value={form.rainfall} onChange={set('rainfall')} unit="mm" />
-                    </View>
-                </View>
-
-                {mode === 'fertilizer' && (
-                    <FieldInput label="Moisture" value={form.moisture} onChange={set('moisture')} unit="%" />
-                )}
-
-                {/* Submit */}
-                <TouchableOpacity
-                    onPress={handleSubmit}
-                    disabled={isLoading}
-                    className={`p-4 rounded-2xl items-center mt-2 ${isLoading ? 'bg-green-300' : modeConfig[mode].color
-                        }`}
-                >
-                    {isLoading ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text className="text-white font-semibold text-base">
-                            Get {modeConfig[mode].label} Recommendation
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }}>
+                <View className="px-6">
+                    {/* Page Title */}
+                    <View className="py-6">
+                        <Text className="font-headline font-extrabold text-4xl text-on-surface mb-1">
+                            AI Predictions
                         </Text>
-                    )}
-                </TouchableOpacity>
+                        <Text className="text-on-surface-variant font-body opacity-80">
+                            Harnessing machine learning for precision agronomy.
+                        </Text>
+                    </View>
 
-                {/* Results */}
-                {result && mode === 'crop' && <CropResult result={result} />}
-                {result && mode === 'suitability' && <SuitabilityResult result={result} />}
-                {result && mode === 'fertilizer' && <FertilizerResult result={result} />}
-            </View>
-        </ScrollView>
+                    {/* Tab Navigation - Pill Style */}
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        className="mb-6"
+                        contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                    >
+                        {tabs.map(tab => (
+                            <TouchableOpacity
+                                key={tab.id}
+                                onPress={() => { setMode(tab.id); setResult(null) }}
+                                className={`px-5 py-3 rounded-full ${mode === tab.id
+                                    ? 'bg-primary-container'
+                                    : 'bg-surface-container-high'
+                                    }`}
+                            >
+                                <Text className={`font-headline font-bold text-sm whitespace-nowrap ${mode === tab.id ? 'text-on-primary-container' : 'text-on-surface-variant'
+                                    }`}>
+                                    {tab.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+
+                    {/* Sensor Auto-Fill Banner */}
+                    {sensorData && (
+                        <TouchableOpacity
+                            onPress={fillFromSensor}
+                            className="bg-surface-container-lowest rounded-full px-5 py-3 mb-6 flex-row items-center justify-between border-l-4 border-secondary"
+                        >
+                            <Text className="text-on-surface font-body font-medium text-sm">Use live sensor data</Text>
+                            <Text className="text-secondary font-label text-xs font-bold uppercase tracking-wider">Tap to fill →</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Input Form Section */}
+                    <View className="bg-surface-container-low p-6 rounded-lg mb-6">
+                        <Text className="font-headline font-bold text-xl mb-4 text-on-surface">
+                            ⚙️  Soil Parameters
+                        </Text>
+
+                        {/* Crop selector for suitability / fertilizer */}
+                        {(mode === 'suitability' || mode === 'fertilizer') && (
+                            <View className="mb-4">
+                                <Text className="font-label font-medium text-sm text-on-surface-variant mb-2 ml-4">Crop</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                    {CROPS.map((crop) => (
+                                        <TouchableOpacity
+                                            key={crop}
+                                            onPress={() => setField('cropName')(crop)}
+                                            className={`px-4 py-2 rounded-full ${form.cropName === crop
+                                                ? 'bg-primary'
+                                                : 'bg-surface-container-high'
+                                                }`}
+                                        >
+                                            <Text className={`text-sm font-label font-medium ${form.cropName === crop ? 'text-on-primary' : 'text-on-surface-variant'}`}>
+                                                {crop}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+
+                        {/* Soil type selector for fertilizer */}
+                        {mode === 'fertilizer' && (
+                            <View className="mb-4">
+                                <Text className="font-label font-medium text-sm text-on-surface-variant mb-2 ml-4">Soil Type</Text>
+                                <View className="flex-row flex-wrap gap-2">
+                                    {SOIL_TYPES.map((soil) => (
+                                        <TouchableOpacity
+                                            key={soil}
+                                            onPress={() => setField('soilType')(soil)}
+                                            className={`px-4 py-2 rounded-full ${form.soilType === soil ? 'bg-tertiary' : 'bg-surface-container-high'}`}
+                                        >
+                                            <Text className={`text-sm font-label font-medium ${form.soilType === soil ? 'text-on-tertiary' : 'text-on-surface-variant'}`}>
+                                                {soil}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
+                        <FieldInput label="Nitrogen (N)" value={form.N} onChange={setField('N')} unit="mg/kg" />
+                        <View className="flex-row gap-3">
+                            <View className="flex-1">
+                                <FieldInput label="Phosphorus (P)" value={form.P} onChange={setField('P')} unit="mg/kg" />
+                            </View>
+                            <View className="flex-1">
+                                <FieldInput label="Potassium (K)" value={form.K} onChange={setField('K')} unit="mg/kg" />
+                            </View>
+                        </View>
+                        <View className="flex-row gap-3">
+                            <View className="flex-1">
+                                <FieldInput label="Temperature (°C)" value={form.temperature} onChange={setField('temperature')} unit="°C" placeholder="24.5" />
+                            </View>
+                            <View className="flex-1">
+                                <FieldInput label="Soil pH" value={form.ph} onChange={setField('ph')} unit="0–14" placeholder="6.5" />
+                            </View>
+                        </View>
+                        <FieldInput label="Rainfall (mm)" value={form.rainfall} onChange={setField('rainfall')} unit="mm" placeholder="200" />
+                        {mode === 'fertilizer' && (
+                            <FieldInput label="Moisture (%)" value={form.moisture} onChange={setField('moisture')} unit="%" />
+                        )}
+
+                        {/* Signature Gradient Submit Button */}
+                        <TouchableOpacity
+                            onPress={handleSubmit}
+                            disabled={isLoading}
+                            className="mt-2 rounded-full overflow-hidden"
+                        >
+                            <LinearGradient
+                                colors={isLoading ? (['#93c5a3', '#93c5a3'] as const) : (['#006b2c', '#00873a'] as const)}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                className="py-5 items-center justify-center rounded-full"
+                            >
+                                {isLoading
+                                    ? <ActivityIndicator color="white" />
+                                    : <Text className="text-on-primary font-headline font-bold text-lg">
+                                        Run Analysis Engine
+                                    </Text>
+                                }
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Results Section */}
+                    {isCropResult(result) && <CropResultView result={result} />}
+                    {isSuitabilityResult(result) && <SuitabilityResultView result={result} />}
+                    {isFertilizerResult(result) && <FertilizerResultView result={result} />}
+                </View>
+            </ScrollView>
+        </View>
     )
 }

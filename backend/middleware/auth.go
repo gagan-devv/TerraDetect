@@ -48,7 +48,7 @@ func Auth(secretKey string) gin.HandlerFunc {
 		}
 
 		// Reject refresh tokens used as access tokens
-		if claims["type"] == "refresh" {
+		if claims["token_type"] == "refresh" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": gin.H{"code": "UNAUTHORIZED", "message": "Use access token, not refresh token."},
 			})

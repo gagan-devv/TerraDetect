@@ -1,0 +1,1 @@
+{"name":"Local: seed_db","url":"/home/gagan-ahlawat/Documents/TerraDetect/backend/scripts/seed_db.py","tests":[{"id":1774633948944,"input":"","output":""}],"interactive":false,"memoryLimit":1024,"timeLimit":3000,"srcPath":"/home/gagan-ahlawat/Documents/TerraDetect/backend/scripts/seed_db.py","group":"local","local":true}

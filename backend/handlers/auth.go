@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gagan-devv/terradetect/backend/config"
@@ -32,7 +33,8 @@ func NewAuthHandler(database *db.Database, cfg *config.Config) *AuthHandler {
 type registerRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=32"`
 	Password string `json:"password" binding:"required,min=8"`
-	DeviceID string `json:"device_id" binding:"required,len=6"`
+	DeviceID string `json:"device_id"`
+	Email    string `json:"email"`
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
@@ -48,19 +50,27 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	defer cancel()
 
 	var device models.Device
-	err := h.db.Devices.FindOne(ctx, bson.M{
-		"device_id":  req.DeviceID,
-		"registered": false,
-	}).Decode(&device)
+	deviceFound := false
+	if req.DeviceID != "" {
+		if !models.IsValidDeviceID(req.DeviceID) {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": gin.H{"code": "VALIDATION_ERROR", "message": "device_id must be two uppercase letters followed by four digits (e.g. AB1234)"}})
+			return
+		}
+		err := h.db.Devices.FindOne(ctx, bson.M{
+			"device_id":  req.DeviceID,
+			"registered": false,
+		}).Decode(&device)
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "DEVICE_NOT_REGISTERED",
-				"message": "Invalid or already registered device ID.",
-			},
-		})
-		return
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": gin.H{
+					"code":    "DEVICE_NOT_REGISTERED",
+					"message": "Invalid or already registered device ID.",
+				},
+			})
+			return
+		}
+		deviceFound = true
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -74,12 +84,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	_, err = h.db.Users.InsertOne(ctx, bson.M{
+	userDoc := bson.M{
 		"username":      req.Username,
 		"password_hash": string(hash),
 		"device_id":     req.DeviceID,
 		"created_at":    primitive.NewDateTimeFromTime(time.Now()),
-	})
+	}
+	if req.Email != "" {
+		userDoc["email"] = req.Email
+	}
+
+	_, err = h.db.Users.InsertOne(ctx, userDoc)
 
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{
@@ -91,22 +106,29 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	_, _ = h.db.Devices.UpdateOne(ctx,
-		bson.M{"device_id": req.DeviceID},
-		bson.M{"$set": bson.M{"registered": true}},
-	)
+	if deviceFound {
+		_, _ = h.db.Devices.UpdateOne(ctx,
+			bson.M{"device_id": req.DeviceID},
+			bson.M{"$set": bson.M{"registered": true}},
+		)
+	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	resp := gin.H{
 		"username":  req.Username,
 		"device_id": req.DeviceID,
-		"api_key":   device.APIKey,
-	})
+	}
+	if deviceFound {
+		resp["api_key"] = device.APIKey
+	}
+
+	c.JSON(http.StatusCreated, resp)
 }
 
 type loginRequest struct {
-	Username string `json:"username" binding:"required"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password" binding:"required"`
-	DeviceID string `json:"device_id" binding:"required"`
+	DeviceID string `json:"device_id"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -121,23 +143,61 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Require either username or email
+	if strings.TrimSpace(req.Username) == "" && strings.TrimSpace(req.Email) == "" {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "username or email is required",
+			},
+		})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var user models.User
 
-	err := h.db.Users.FindOne(ctx, bson.M{
-		"username":  req.Username,
-		"device_id": req.DeviceID,
-	}).Decode(&user)
+	// Build query: match username OR email; include device_id if provided
+	filters := []bson.M{}
+	if strings.TrimSpace(req.Username) != "" {
+		filters = append(filters, bson.M{"username": req.Username})
+	}
+	if strings.TrimSpace(req.Email) != "" {
+		filters = append(filters, bson.M{"email": req.Email})
+	}
+
+	query := bson.M{"$or": filters}
+
+	err := h.db.Users.FindOne(ctx, query).Decode(&user)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{
 				"code":    "INVALID_CREDENTIALS",
-				"message": "Invalid username, password, or device ID.",
+				"message": "Invalid username/email, password, or device ID.",
 			},
 		})
 		return
+	}
+
+	// If a device_id was provided, verify it matches the user's device if the
+	// user already has a device associated. If the user has no device set,
+	// allow login (they can claim a device later).
+	if req.DeviceID != "" {
+		if !models.IsValidDeviceID(req.DeviceID) {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": gin.H{"code": "VALIDATION_ERROR", "message": "device_id must be two uppercase letters followed by four digits (e.g. AB1234)"}})
+			return
+		}
+		if user.DeviceID != "" && req.DeviceID != user.DeviceID {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": gin.H{
+					"code":    "INVALID_CREDENTIALS",
+					"message": "Invalid username/email, password, or device ID.",
+				},
+			})
+			return
+		}
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
@@ -230,7 +290,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	if claims["token"] != "refresh" {
+	if claims["token_type"] != "refresh" {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{
 				"code":    "UNAUTHORIZED",

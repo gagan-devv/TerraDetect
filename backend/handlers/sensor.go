@@ -59,6 +59,11 @@ func (h *SensorHandler) ReceiveESP32(c *gin.Context) {
 		return
 	}
 
+	if !models.IsValidDeviceID(payload.DeviceId) {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": gin.H{"code": "VALIDATION_ERROR", "message": "device_id must be two uppercase letters followed by four digits (e.g. AB1234)"}})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

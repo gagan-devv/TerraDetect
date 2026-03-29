@@ -1,197 +1,420 @@
-import React, { useCallback, useEffect, useRef } from 'react'
-import {
-    View, Text, ScrollView, TouchableOpacity,
-    RefreshControl, ActivityIndicator, Alert,
-} from 'react-native'
-import { useRouter } from 'expo-router'
-import { api } from '../../lib/api'
-import { useAuthStore } from '../../store/authStore'
-import { useSensorStore } from '../../store/sensorStore'
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, RefreshControl, Pressable, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { api, SensorData } from '../../lib/api';
+import { useRouter } from 'expo-router';
+import { useAuthStore } from '../../store/authStore';
+import { StatCard } from '../../components/StatCard';
+import { HealthMeter } from '../../components/HealthMeter';
+import { Card } from '../../components/Card';
 
-const REFRESH_INTERVAL_MS = 60_000
+export default function Dashboard() {
+    const { accessToken, username } = useAuthStore();
+    const accessExpiry = useAuthStore((s) => s.accessExpiry ?? null);
+    const [data, setData] = useState<SensorData | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [fabOpen, setFabOpen] = useState(false);
+    const [sessionRemaining, setSessionRemaining] = useState<number | null>(null);
 
-interface MetricCardProps {
-    label: string
-    value: number | null
-    unit: string
-    color: string
-}
-
-function MetricCard({ label, value, unit, color }: MetricCardProps) {
-    return (
-        <View className={`bg-white rounded-2xl p-4 flex-1 min-w-[44%] m-1 border-l-4 ${color}`}>
-            <Text className="text-gray-500 text-xs font-medium uppercase tracking-wide">
-                {label}
-            </Text>
-            <Text className="text-2xl font-bold text-gray-800 mt-1">
-                {value !== null ? value.toFixed(1) : '--'}
-            </Text>
-            <Text className="text-gray-400 text-xs mt-0.5">{unit}</Text>
-        </View>
-    )
-}
-
-export default function DashboardScreen() {
-    const router = useRouter()
-    const { accessToken, username, deviceId, logout } = useAuthStore()
-    const { latest, lastUpdated, isLoading, error, setLatest, setLoading, setError } =
-        useSensorStore()
-
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-    const fetchLatest = useCallback(async () => {
-        if (!accessToken) return
-        setLoading(true)
+    const fetchData = async () => {
+        if (!accessToken) return;
         try {
-            const res = await api.latestSensor(accessToken)
-            setLatest(res.data, res.timestamp)
-        } catch (err: any) {
-            setError(err.message)
+            setError(null);
+            const res = await api.latestSensor(accessToken);
+            setData(res);
+        } catch (err: unknown) {
+            console.error('Fetch error:', err);
+            setError(err instanceof Error ? err.message : String(err) || 'Failed to load sensor data');
+        } finally {
+            setLoading(false);
         }
-    }, [accessToken])
+    };
 
-    useEffect(() => {
-        fetchLatest()
-        intervalRef.current = setInterval(fetchLatest, REFRESH_INTERVAL_MS)
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current)
+    const handlePredictSnapshot = async () => {
+        if (!accessToken) return Alert.alert('Not signed in');
+        if (!data) return Alert.alert('No sensor data', 'Refresh to load latest sensor values before predicting.');
+        try {
+            const body = {
+                temperature: data.temperature,
+                humidity: data.humidity,
+                ph: data.ph,
+                N: data.N,
+                P: data.P,
+                K: data.K,
+            };
+            const res = await api.predictCrop(accessToken, body);
+            Alert.alert('Prediction', `Recommended crop: ${res.recommended_crop}\nConfidence: ${Math.round(res.confidence * 100)}%`);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            Alert.alert('Prediction failed', msg || 'Unknown error');
         }
-    }, [fetchLatest])
+    };
+
+    const handleClaimDevice = () => {
+        Alert.alert('Claim Device', 'To claim a device, go to Settings → Devices in the app.');
+    };
 
     const handleLogout = async () => {
-        Alert.alert('Logout', 'Are you sure?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Logout',
-                style: 'destructive',
-                onPress: async () => {
-                    await logout()
-                    router.replace('/(auth)/landing')
-                },
-            },
-        ])
+        const store = useAuthStore.getState();
+        await store.logout();
+    };
+
+    const router = useRouter();
+
+    const handleManualInput = () => {
+        router.push('/manual-input');
+    };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchData();
+        setRefreshing(false);
+    };
+
+    useEffect(() => {
+        fetchData();
+        // Set up 30-second polling for real-time updates
+        const interval = setInterval(fetchData, 30000);
+        // Session countdown
+        let sessionTimer: ReturnType<typeof setInterval> | null = null;
+        if (accessExpiry) {
+            const update = () => {
+                const rem = Math.max(0, Math.floor((accessExpiry - Date.now()) / 1000));
+                setSessionRemaining(rem);
+                if (rem <= 0) {
+                    const store = useAuthStore.getState();
+                    void store.logout();
+                }
+            };
+            update();
+            sessionTimer = setInterval(update, 1000);
+        } else {
+            setSessionRemaining(null);
+        }
+        return () => {
+            clearInterval(interval);
+            if (sessionTimer) clearInterval(sessionTimer);
+        };
+    }, [accessToken]);
+
+    // Get greeting based on time of day
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 18) return 'Good afternoon';
+        return 'Good evening';
+    };
+
+    // Loading skeleton
+    if (loading) {
+        return (
+            <View className='flex-1 bg-background dark:bg-surface-dark'>
+                {/* Top App Bar Skeleton */}
+                <View className='bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm'>
+                    <View className='flex-row justify-between items-center px-6 py-4'>
+                        <View className='flex-row items-center gap-3'>
+                            <View className='w-8 h-8 bg-surface-container dark:bg-surface-container-dark rounded-full' />
+                            <View className='w-32 h-6 bg-surface-container dark:bg-surface-container-dark rounded-lg' />
+                        </View>
+                        <View className='flex-row items-center gap-4'>
+                            <View className='w-10 h-10 bg-surface-container dark:bg-surface-container-dark rounded-full' />
+                            <View className='w-10 h-10 bg-surface-container dark:bg-surface-container-dark rounded-full' />
+                        </View>
+                    </View>
+                </View>
+
+                <ScrollView className='flex-1'>
+                    <View className='pt-6 pb-32 px-6'>
+                        <View className='mb-10'>
+                            <View className='h-12 w-64 bg-surface-container dark:bg-surface-container-dark rounded-lg mb-2' />
+                            <View className='h-6 w-full bg-surface-container dark:bg-surface-container-dark rounded-lg' />
+                        </View>
+                        <View className='h-64 bg-surface-container dark:bg-surface-container-dark rounded-lg mb-6' />
+                        <View className='flex-row gap-4'>
+                            <View className='flex-1 h-32 bg-surface-container dark:bg-surface-container-dark rounded-lg' />
+                            <View className='flex-1 h-32 bg-surface-container dark:bg-surface-container-dark rounded-lg' />
+                        </View>
+                    </View>
+                </ScrollView>
+            </View>
+        );
     }
 
-    const formattedTime = lastUpdated
-        ? new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : null
+    // Error state
+    if (error) {
+        return (
+            <View className='flex-1 bg-background dark:bg-surface-dark'>
+                {/* Top App Bar */}
+                <View className='bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm'>
+                    <View className='flex-row justify-between items-center px-6 py-4'>
+                        <View className='flex-row items-center gap-3'>
+                            <Text className='text-primary dark:text-primary-dark text-3xl'>🌱</Text>
+                            <Text className='font-headline font-bold text-2xl text-primary dark:text-primary-dark tracking-tight'>
+                                TerraDetect
+                            </Text>
+                            {sessionRemaining !== null && (
+                                <Text className='ml-3 text-sm text-on-surface-variant dark:text-on-surface-variant-dark'>
+                                    {sessionRemaining > 0 ? `Session: ${Math.floor(sessionRemaining / 60)}m ${sessionRemaining % 60}s` : 'Session expired'}
+                                </Text>
+                            )}
+                        </View>
+                        <View className='flex-row items-center gap-4'>
+                            <Pressable className='p-2 rounded-full active:bg-primary-fixed/20 dark:active:bg-primary-fixed-dark/20'>
+                                <Text className='text-on-surface-variant dark:text-on-surface-variant-dark text-2xl'>🔔</Text>
+                            </Pressable>
+                            <View className='w-10 h-10 rounded-full bg-surface-container-high dark:bg-surface-container-high-dark items-center justify-center'>
+                                <Text className='text-xl'>👨‍🌾</Text>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                <ScrollView
+                    className='flex-1'
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                >
+                    <View className='pt-6 pb-32 px-6 items-center justify-center min-h-[400px]'>
+                        <View className='w-16 h-16 bg-error-container dark:bg-error-container-dark rounded-full items-center justify-center mb-4'>
+                            <Text className='text-3xl'>⚠️</Text>
+                        </View>
+                        <Text className='text-error dark:text-error-dark font-headline text-xl font-bold mb-2 text-center'>
+                            Failed to Load Data
+                        </Text>
+                        <Text className='text-on-surface-variant dark:text-on-surface-variant-dark font-body text-base mb-6 text-center'>
+                            {error}
+                        </Text>
+                        <Pressable
+                            onPress={onRefresh}
+                            className='bg-primary dark:bg-primary-dark px-6 py-3 rounded-full active:opacity-80'
+                        >
+                            <Text className='text-on-primary dark:text-on-primary-dark font-label font-semibold'>
+                                Retry
+                            </Text>
+                        </Pressable>
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
 
     return (
-        <ScrollView
-            className="flex-1 bg-gray-50"
-            refreshControl={
-                <RefreshControl refreshing={isLoading} onRefresh={fetchLatest} tintColor="#16a34a" />
-            }
-        >
-            {/* Header */}
-            <View className="bg-green-700 px-6 pt-14 pb-6">
-                <View className="flex-row justify-between items-start">
-                    <View>
-                        <Text className="text-green-200 text-sm">Welcome back,</Text>
-                        <Text className="text-white text-xl font-bold">{username}</Text>
-                        <Text className="text-green-300 text-xs mt-0.5">Device: {deviceId}</Text>
+        <View className='flex-1 bg-background dark:bg-surface-dark'>
+            {/* TopAppBar - Glassmorphic */}
+            <View className='bg-white/80 dark:bg-slate-900/80 shadow-sm'>
+                <View className='flex-row justify-between items-center px-6 py-4 pt-12'>
+                    <View className='flex-row items-center gap-3'>
+                        <Text className='text-primary dark:text-primary-dark text-3xl'>🌱</Text>
+                        <Text className='font-headline font-bold text-2xl text-primary dark:text-primary-dark tracking-tight'>
+                            TerraDetect
+                        </Text>
                     </View>
-                    <TouchableOpacity
-                        onPress={handleLogout}
-                        className="bg-green-600 px-4 py-2 rounded-xl"
-                    >
-                        <Text className="text-white text-sm font-medium">Logout</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Last updated */}
-                <View className="mt-4 flex-row items-center">
-                    <View className={`w-2 h-2 rounded-full mr-2 ${latest ? 'bg-green-300' : 'bg-gray-400'}`} />
-                    <Text className="text-green-200 text-xs">
-                        {formattedTime ? `Last updated at ${formattedTime}` : 'No data yet'}
-                    </Text>
+                    <View className='flex-row items-center gap-3'>
+                        <Pressable className='p-2 rounded-full active:bg-primary-fixed/20 dark:active:bg-primary-fixed/10'>
+                            <Text className='text-on-surface-variant dark:text-on-surface-variant-dark text-2xl'>🔔</Text>
+                        </Pressable>
+                        <View className='w-10 h-10 rounded-full bg-primary-fixed dark:bg-primary-fixed items-center justify-center overflow-hidden'>
+                            <Text className='text-xl'>👨‍🌾</Text>
+                        </View>
+                    </View>
                 </View>
             </View>
 
-            <View className="px-4 pt-4">
-                {/* Error banner */}
-                {error && (
-                    <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                        <Text className="text-red-600 text-sm">{error}</Text>
-                    </View>
-                )}
-
-                {/* Loading state (first load only) */}
-                {isLoading && !latest && (
-                    <View className="items-center py-12">
-                        <ActivityIndicator size="large" color="#16a34a" />
-                        <Text className="text-gray-400 mt-3 text-sm">Fetching sensor data...</Text>
-                    </View>
-                )}
-
-                {/* Sensor grid */}
-                {latest && (
-                    <>
-                        <Text className="text-gray-700 font-semibold text-base mb-2 px-1">
-                            Live Readings
+            <ScrollView
+                className='flex-1'
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor='#006b2c' />}
+            >
+                <View className='pt-6 pb-32 px-6'>
+                    {/* Welcome Section */}
+                    <View className='mb-10'>
+                        <Text className='font-headline font-extrabold text-4xl text-on-surface dark:text-on-surface-dark tracking-tight leading-tight'>
+                            {getGreeting()},{'\n'}
+                            <Text className='text-primary dark:text-primary-dark'>{username || 'Farmer'}!</Text>
                         </Text>
-
-                        <View className="flex-row flex-wrap -m-1 mb-2">
-                            <MetricCard
-                                label="Temperature"
-                                value={latest.temperature}
-                                unit="°C"
-                                color="border-orange-400"
-                            />
-                            <MetricCard
-                                label="Humidity"
-                                value={latest.humidity}
-                                unit="%"
-                                color="border-blue-400"
-                            />
-                        </View>
-
-                        <View className="flex-row flex-wrap -m-1 mb-2">
-                            <MetricCard label="Soil pH" value={latest.ph} unit="0–14" color="border-purple-400" />
-                            <MetricCard label="EC" value={latest.ec} unit="μS/cm" color="border-yellow-400" />
-                        </View>
-
-                        <View className="flex-row flex-wrap -m-1 mb-2">
-                            <MetricCard label="Moisture" value={latest.moisture} unit="%" color="border-teal-400" />
-                            <MetricCard label="Nitrogen" value={latest.N} unit="kg/ha" color="border-green-500" />
-                        </View>
-
-                        <View className="flex-row flex-wrap -m-1 mb-4">
-                            <MetricCard label="Phosphorus" value={latest.P} unit="kg/ha" color="border-pink-400" />
-                            <MetricCard label="Potassium" value={latest.K} unit="kg/ha" color="border-indigo-400" />
-                        </View>
-                    </>
-                )}
-
-                {/* No data state */}
-                {!latest && !isLoading && !error && (
-                    <View className="items-center py-12">
-                        <Text className="text-gray-400 text-base">No sensor data available yet.</Text>
-                        <Text className="text-gray-300 text-sm mt-1">
-                            Make sure your ESP32 is powered and connected.
+                        <Text className='mt-2 text-on-surface-variant dark:text-on-surface-variant-dark font-body text-lg'>
+                            Your crops are thriving today. Here's your real-time soil health overview.
                         </Text>
                     </View>
-                )}
 
-                {/* Action buttons */}
-                <View className="space-y-3 pb-8">
-                    <TouchableOpacity
-                        onPress={() => router.push('/(app)/predict')}
-                        className="bg-green-600 p-4 rounded-2xl items-center"
-                    >
-                        <Text className="text-white font-semibold text-base">ML Predictions</Text>
-                        <Text className="text-green-200 text-xs mt-0.5">Crop, suitability & fertilizer</Text>
-                    </TouchableOpacity>
+                    {/* Hero Bento Grid */}
+                    <View className='flex-row gap-6 mb-12'>
+                        {/* Featured Field Status - 2/3 width */}
+                        <Card variant='elevated' padding='lg' className='flex-[2] min-h-[240px]'>
+                            <View className='absolute inset-0 z-0 bg-primary/20 dark:bg-primary-dark/20 rounded-lg'>
+                                {/* Gradient overlay */}
+                                <LinearGradient
+                                    colors={(['transparent', 'rgba(25,28,29,0.8)'] as const)}
+                                    className='absolute inset-0 rounded-lg'
+                                />
+                            </View>
+                            <View className='relative z-10 h-full justify-end'>
+                                <View className='flex-row items-center gap-2 mb-2'>
+                                    <View className='px-3 py-1 bg-primary dark:bg-primary-dark rounded-full'>
+                                        <Text className='text-on-primary dark:text-on-primary-dark text-[10px] font-bold uppercase tracking-widest'>
+                                            Active Monitoring
+                                        </Text>
+                                    </View>
+                                </View>
+                                <Text className='text-white font-headline font-bold text-3xl'>
+                                    North Sector Beta
+                                </Text>
+                                <Text className='text-white/80 font-body text-sm'>
+                                    Last scan: 2 minutes ago
+                                </Text>
+                            </View>
+                        </Card>
 
-                    <TouchableOpacity
-                        onPress={() => router.push('/(app)/history')}
-                        className="bg-white border border-gray-200 p-4 rounded-2xl items-center"
-                    >
-                        <Text className="text-gray-700 font-semibold text-base">Sensor History</Text>
-                        <Text className="text-gray-400 text-xs mt-0.5">View past readings</Text>
-                    </TouchableOpacity>
+                        {/* pH Health Meter - 1/3 width */}
+                        <View className='flex-1 bg-surface-container-lowest dark:bg-surface-container-lowest-dark p-6 rounded-lg border-l-4 border-tertiary dark:border-tertiary-dark shadow-sm'>
+                            <View className='flex-row justify-between items-start mb-6'>
+                                <View className='w-12 h-12 bg-tertiary-fixed dark:bg-tertiary-fixed-dark rounded-xl items-center justify-center'>
+                                    <Text className='text-2xl'>🧪</Text>
+                                </View>
+                                <Text className='text-tertiary dark:text-tertiary-dark font-headline font-bold'>
+                                    {data?.ph && data.ph >= 6.0 && data.ph <= 7.5 ? 'Optimal' : 'Monitor'}
+                                </Text>
+                            </View>
+                            <Text className='text-on-surface-variant dark:text-on-surface-variant-dark font-label font-medium uppercase text-xs tracking-widest mb-1'>
+                                Soil pH Level
+                            </Text>
+                            <Text className='text-5xl font-black font-headline text-on-surface dark:text-on-surface-dark mb-8'>
+                                {data?.ph?.toFixed(1) ?? '--'}
+                            </Text>
+                            <HealthMeter
+                                value={data?.ph ?? 7.0}
+                                min={0}
+                                max={14}
+                                optimal={[6.0, 7.5]}
+                                label='pH Scale'
+                            />
+                        </View>
+                    </View>
+
+                    {/* Sensor Data Cards Section */}
+                    <View className='mb-12'>
+                        <View className='flex-row items-center gap-2 mb-6'>
+                            <View className='w-1.5 h-6 bg-primary dark:bg-primary-dark rounded-full' />
+                            <Text className='font-headline font-bold text-xl text-on-surface dark:text-on-surface-dark'>
+                                Real-time Telemetry
+                            </Text>
+                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className='gap-4'>
+                            <StatCard
+                                label='Temperature'
+                                value={`${data?.temperature?.toFixed(1) ?? '--'}°C`}
+                                icon='🌡️'
+                                trend='+2.1%'
+                                color='orange'
+                                className='mr-4'
+                            />
+                            <StatCard
+                                label='Humidity'
+                                value={`${data?.humidity?.toFixed(0) ?? '--'}%`}
+                                icon='💧'
+                                trend='-0.5%'
+                                color='blue'
+                                className='mr-4'
+                            />
+                            <StatCard
+                                label='Nitrogen (N)'
+                                value={`${data?.N?.toFixed(0) ?? '--'}`}
+                                icon='🌿'
+                                trend='Stable'
+                                color='green'
+                                className='mr-4'
+                            />
+                            <StatCard
+                                label='Phosphorus (P)'
+                                value={`${data?.P?.toFixed(0) ?? '--'}`}
+                                icon='🧪'
+                                trend='+12%'
+                                color='purple'
+                                className='mr-4'
+                            />
+                            <StatCard
+                                label='Potassium (K)'
+                                value={`${data?.K?.toFixed(0) ?? '--'}`}
+                                icon='🌾'
+                                trend='-2.4%'
+                                color='amber'
+                            />
+                        </ScrollView>
+                    </View>
+
+                    {/* Secondary Insights Area */}
+                    <View className='bg-surface-container-low dark:bg-surface-container-low-dark rounded-lg p-1'>
+                        <View className='flex-row gap-1'>
+                            {/* Hydration Forecast */}
+                            <View className='flex-1 bg-surface-container-lowest dark:bg-surface-container-lowest-dark p-6 rounded-lg'>
+                                <Text className='font-headline font-bold text-lg text-on-surface dark:text-on-surface-dark mb-4'>
+                                    Hydration Forecast
+                                </Text>
+                                <View className='flex-row items-end gap-2 h-32'>
+                                    <View className='bg-primary/20 dark:bg-primary-dark/20 flex-1 rounded-t-md' style={{ height: '40%' }} />
+                                    <View className='bg-primary/20 dark:bg-primary-dark/20 flex-1 rounded-t-md' style={{ height: '60%' }} />
+                                    <View className='bg-primary/40 dark:bg-primary-dark/40 flex-1 rounded-t-md' style={{ height: '80%' }} />
+                                    <View className='bg-primary dark:bg-primary-dark flex-1 rounded-t-md' style={{ height: '100%' }} />
+                                    <View className='bg-primary/60 dark:bg-primary-dark/60 flex-1 rounded-t-md' style={{ height: '70%' }} />
+                                    <View className='bg-primary/30 dark:bg-primary-dark/30 flex-1 rounded-t-md' style={{ height: '50%' }} />
+                                </View>
+                                <View className='flex-row justify-between mt-4'>
+                                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                                        <Text key={day} className='text-[10px] font-bold text-on-surface-variant dark:text-on-surface-variant-dark uppercase tracking-tighter'>
+                                            {day}
+                                        </Text>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Predictive Action */}
+                            <View className='flex-1 bg-surface-container-lowest dark:bg-surface-container-lowest-dark p-6 rounded-lg items-center justify-center'>
+                                <View className='w-16 h-16 bg-primary-fixed dark:bg-primary-fixed-dark rounded-full items-center justify-center mb-4'>
+                                    <Text className='text-3xl'>💡</Text>
+                                </View>
+                                <Text className='font-headline font-bold text-lg text-on-surface dark:text-on-surface-dark text-center'>
+                                    Predictive Action
+                                </Text>
+                                <Text className='text-on-surface-variant dark:text-on-surface-variant-dark font-body text-sm mt-2 text-center max-w-[240px]'>
+                                    Nitrogen levels are peaking. Delay fertilization for 48 hours to prevent runoff.
+                                </Text>
+                                <Pressable className='mt-6'>
+                                    <Text className='text-primary dark:text-primary-dark font-label font-bold text-sm'>
+                                        View Full Analysis
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </View>
                 </View>
+            </ScrollView>
+
+            {/* Floating Action Button - Quick Actions */}
+            <View className='absolute right-6 bottom-6 z-50 items-end'>
+                {fabOpen && (
+                    <View className='mb-3'>
+                        <Pressable onPress={onRefresh} className='bg-surface-container px-4 py-2 rounded-full mb-2 shadow-sm'>
+                            <Text className='text-on-surface'>🔄 Refresh</Text>
+                        </Pressable>
+                        <Pressable onPress={handlePredictSnapshot} className='bg-surface-container px-4 py-2 rounded-full mb-2 shadow-sm'>
+                            <Text className='text-on-surface'>📸 Snapshot → Predict</Text>
+                        </Pressable>
+                        <Pressable onPress={handleClaimDevice} className='bg-surface-container px-4 py-2 rounded-full mb-2 shadow-sm'>
+                            <Text className='text-on-surface'>🧷 Claim Device</Text>
+                        </Pressable>
+                        <Pressable onPress={handleLogout} className='bg-error-container px-4 py-2 rounded-full shadow-sm'>
+                            <Text className='text-on-error'>🚪 Logout</Text>
+                        </Pressable>
+                    </View>
+                )}
+
+                <Pressable
+                    onPress={() => setFabOpen((s) => !s)}
+                    className='w-14 h-14 rounded-full bg-primary items-center justify-center shadow-lg'
+                >
+                    <Text className='text-on-primary text-2xl'>{fabOpen ? '×' : '+'}</Text>
+                </Pressable>
             </View>
-        </ScrollView>
-    )
+        </View>
+    );
 }
