@@ -10,5 +10,5 @@ with open('crop-model.pkl', 'rb') as f:
 sk_preds = sk_model.predict(X)
 onnx_preds = sess.run(None, {'float_input': X})[0]
 
-mismatches = (sk_preds != onnx_preds)
-print(f'Mismatches: {mismatches}/50 ({'PASS' if mismatches == 0 else 'FAIL'})')
+mismatches_count = int((sk_preds != onnx_preds).sum())
+print(f"Mismatches: {mismatches_count}/50 ({'PASS' if mismatches_count == 0 else 'FAIL'})")

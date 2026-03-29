@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TerraDetect - History</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-variant": "#2e3447",
+              "on-error": "#690005",
+              "outline": "#879485",
+              "on-tertiary-container": "#3e2400",
+              "surface-container": "#191f31",
+              "secondary": "#7bd0ff",
+              "secondary-container": "#00a6e0",
+              "tertiary": "#ffb95f",
+              "primary-container": "#1ca64d",
+              "surface-container-highest": "#2e3447",
+              "surface": "#0c1324",
+              "secondary-fixed": "#c4e7ff",
+              "on-secondary-fixed-variant": "#004c69",
+              "on-tertiary": "#472a00",
+              "on-secondary-container": "#00374d",
+              "on-tertiary-fixed-variant": "#653e00",
+              "outline-variant": "#3e4a3d",
+              "inverse-primary": "#006e2d",
+              "tertiary-fixed": "#ffddb8",
+              "surface-dim": "#0c1324",
+              "on-tertiary-fixed": "#2a1700",
+              "background": "#0c1324",
+              "tertiary-container": "#ca8100",
+              "on-primary-container": "#003111",
+              "inverse-surface": "#dce1fb",
+              "error": "#ffb4ab",
+              "primary": "#62df7d",
+              "primary-fixed-dim": "#62df7d",
+              "on-primary-fixed-variant": "#005320",
+              "tertiary-fixed-dim": "#ffb95f",
+              "surface-bright": "#33394c",
+              "on-error-container": "#ffdad6",
+              "surface-container-high": "#23293c",
+              "on-surface": "#dce1fb",
+              "on-primary": "#003914",
+              "surface-tint": "#62df7d",
+              "surface-container-low": "#151b2d",
+              "inverse-on-surface": "#2a3043",
+              "surface-container-lowest": "#070d1f",
+              "on-secondary-fixed": "#001e2c",
+              "secondary-fixed-dim": "#7bd0ff",
+              "primary-fixed": "#7ffc97",
+              "on-surface-variant": "#bdcaba",
+              "on-primary-fixed": "#002109",
+              "error-container": "#93000a",
+              "on-background": "#dce1fb",
+              "on-secondary": "#00354a"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      body {
+        background-color: #0c1324;
+        color: #dce1fb;
+      }
+      .glass-card {
+        background: rgba(25, 31, 49, 0.6);
+        backdrop-filter: blur(20px);
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body selection:bg-primary selection:text-on-primary">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#070d1f] flex justify-between items-center px-6 h-16">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#62df7d]" data-icon="sensors">sensors</span>
+<h1 class="text-[#62df7d] font-['Space_Grotesk'] font-extrabold tracking-tighter text-xl">TerraDetect</h1>
+</div>
+<div class="active:scale-95 duration-200 transition-opacity hover:opacity-80">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden">
+<img alt="User Profile" data-alt="close up professional headshot of a person with neutral lighting and minimalist background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWImmI-3-qhlMl8bs4x_WVzZk3hp6ECY2C1zKe9sp4s6IbD7rQPRt2wI_RzjQIFMqEH-ee0-r6Z5j9lrrCT_MqtcPex0Y8UKf5WMoXWW1f_KUy2APPYAgvUmEy4WNTNiODiXSLoSHMxzEDaMXSZzSoLLBin7Ht_nF4SHibK1_2_6nMCkIhcJxNOFFZjSy_0jeoUE9Maaa4xgsvRUh7xMb59xy_Oo1Z9d--R1k0hSdTLqPBUN3-yI6UqowUKbJlpzGScs4dmjyIGEwM"/>
+</div>
+</div>
+</header>
+<main class="pt-24 pb-32 px-6 max-w-4xl mx-auto">
+<!-- Editorial Header Section -->
+<section class="mb-12">
+<h2 class="font-headline text-5xl font-bold tracking-tight mb-4 text-on-surface">Environmental <span class="text-primary">Timeline</span></h2>
+<p class="text-on-surface-variant text-lg max-w-xl">A comprehensive historical record of ecological sensor data across the terrestrial network.</p>
+</section>
+<!-- Dynamic Filter Strip (Editorial Asymmetry) -->
+<div class="flex flex-wrap gap-4 mb-10 overflow-x-auto pb-2 no-scrollbar">
+<button class="bg-primary text-on-primary px-6 py-2 rounded-full font-label text-sm font-semibold transition-all hover:opacity-90 active:scale-95">All Logs</button>
+<button class="bg-surface-container text-on-surface-variant px-6 py-2 rounded-full font-label text-sm font-medium hover:text-primary transition-colors">Soil Moisture</button>
+<button class="bg-surface-container text-on-surface-variant px-6 py-2 rounded-full font-label text-sm font-medium hover:text-primary transition-colors">Luminosity</button>
+<button class="bg-surface-container text-on-surface-variant px-6 py-2 rounded-full font-label text-sm font-medium hover:text-primary transition-colors">Seismic Activity</button>
+</div>
+<!-- History Entries - Bento / Editorial Style -->
+<div class="space-y-6">
+<!-- Grouping Label -->
+<div class="flex items-center gap-4 mb-4">
+<span class="text-xs font-bold uppercase tracking-widest text-outline">Today — Oct 24</span>
+<div class="h-[1px] flex-grow bg-surface-container"></div>
+</div>
+<!-- Log Card 1 -->
+<div class="bg-surface-container rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-surface-container-high transition-all">
+<div class="flex items-start gap-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container-lowest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="water_drop">water_drop</span>
+</div>
+<div>
+<h3 class="font-headline text-xl font-bold text-on-surface">Soil Hydration Shift</h3>
+<p class="text-on-surface-variant text-sm font-label">Sensor Hub Alpha-09 • Forest Bed</p>
+</div>
+</div>
+<div class="flex flex-col md:items-end">
+<span class="text-2xl font-headline font-bold text-primary">42.8%</span>
+<span class="text-xs text-outline font-label uppercase">14:22:10 GMT</span>
+</div>
+</div>
+<!-- Log Card 2 -->
+<div class="bg-surface-container rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-surface-container-high transition-all">
+<div class="flex items-start gap-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container-lowest flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="light_mode">light_mode</span>
+</div>
+<div>
+<h3 class="font-headline text-xl font-bold text-on-surface">Peak Photometry</h3>
+<p class="text-on-surface-variant text-sm font-label">Canopy Array 04 • Upper Tier</p>
+</div>
+</div>
+<div class="flex flex-col md:items-end">
+<span class="text-2xl font-headline font-bold text-secondary">850 LUX</span>
+<span class="text-xs text-outline font-label uppercase">12:05:44 GMT</span>
+</div>
+</div>
+<!-- Grouping Label -->
+<div class="flex items-center gap-4 mt-12 mb-4">
+<span class="text-xs font-bold uppercase tracking-widest text-outline">Yesterday — Oct 23</span>
+<div class="h-[1px] flex-grow bg-surface-container"></div>
+</div>
+<!-- Log Card 3 -->
+<div class="bg-surface-container rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-surface-container-high transition-all">
+<div class="flex items-start gap-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container-lowest flex items-center justify-center text-error">
+<span class="material-symbols-outlined" data-icon="warning" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div>
+<h3 class="font-headline text-xl font-bold text-on-surface">Thermal Threshold Exceeded</h3>
+<p class="text-on-surface-variant text-sm font-label">Perimeter Node B • Dry Zone</p>
+</div>
+</div>
+<div class="flex flex-col md:items-end">
+<span class="text-2xl font-headline font-bold text-error">38.4°C</span>
+<span class="text-xs text-outline font-label uppercase">16:45:12 GMT</span>
+</div>
+</div>
+<!-- Log Card 4 (Asymmetric Data Visual In-line) -->
+<div class="bg-surface-container-low rounded-xl p-8 grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden">
+<div class="md:col-span-2">
+<span class="text-tertiary text-xs font-bold uppercase tracking-widest mb-2 block">Anomaly Detected</span>
+<h3 class="font-headline text-2xl font-bold text-on-surface mb-2">Micro-Seismic Vibration</h3>
+<p class="text-on-surface-variant text-sm max-w-md">Station Sigma recorded a sequence of low-frequency oscillations consistent with tectonic settling.</p>
+</div>
+<div class="flex flex-col items-end justify-center">
+<div class="w-full h-12 bg-surface-container flex items-end gap-1 mb-2 px-2">
+<div class="w-2 h-4 bg-tertiary/20 rounded-t-sm"></div>
+<div class="w-2 h-6 bg-tertiary/40 rounded-t-sm"></div>
+<div class="w-2 h-10 bg-tertiary rounded-t-sm"></div>
+<div class="w-2 h-7 bg-tertiary/60 rounded-t-sm"></div>
+<div class="w-2 h-5 bg-tertiary/30 rounded-t-sm"></div>
+</div>
+<span class="text-xl font-headline font-bold text-tertiary">2.1 M<sub>L</sub></span>
+</div>
+</div>
+</div>
+<!-- Load More Section -->
+<div class="mt-16 flex justify-center">
+<button class="flex items-center gap-3 bg-surface-container-highest text-primary px-8 py-4 rounded-full font-label font-bold transition-all hover:scale-105 active:scale-95 shadow-xl">
+<span>Load More History</span>
+<span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
+</button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-none bg-[#0c1324]/60 backdrop-blur-xl border-t border-[#33394c]/10 shadow-[0_-10px_30px_rgba(7,13,31,0.5)] flex justify-around items-center h-20 px-4 pb-4">
+<a class="flex flex-col items-center justify-center text-[#bdcaba] opacity-70 hover:text-[#62df7d] transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="Table_Chart">table_chart</span>
+<span class="font-['Inter'] text-[11px] font-medium">Monitor</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#62df7d] bg-[#1ca64d]/10 rounded-xl px-4 py-1 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="History" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-['Inter'] text-[11px] font-medium">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#bdcaba] opacity-70 hover:text-[#62df7d] transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="Analytics">analytics</span>
+<span class="font-['Inter'] text-[11px] font-medium">Predict</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#bdcaba] opacity-70 hover:text-[#62df7d] transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="Settings">settings</span>
+<span class="font-['Inter'] text-[11px] font-medium">Settings</span>
+</a>
+</nav>
+</body></html>

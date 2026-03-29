@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-variant": "#2e3447",
+              "on-error": "#690005",
+              "outline": "#879485",
+              "on-tertiary-container": "#3e2400",
+              "surface-container": "#191f31",
+              "secondary": "#7bd0ff",
+              "secondary-container": "#00a6e0",
+              "tertiary": "#ffb95f",
+              "primary-container": "#1ca64d",
+              "surface-container-highest": "#2e3447",
+              "surface": "#0c1324",
+              "secondary-fixed": "#c4e7ff",
+              "on-secondary-fixed-variant": "#004c69",
+              "on-tertiary": "#472a00",
+              "on-secondary-container": "#00374d",
+              "on-tertiary-fixed-variant": "#653e00",
+              "outline-variant": "#3e4a3d",
+              "inverse-primary": "#006e2d",
+              "tertiary-fixed": "#ffddb8",
+              "surface-dim": "#0c1324",
+              "on-tertiary-fixed": "#2a1700",
+              "background": "#0c1324",
+              "tertiary-container": "#ca8100",
+              "on-primary-container": "#003111",
+              "inverse-surface": "#dce1fb",
+              "error": "#ffb4ab",
+              "primary": "#62df7d",
+              "primary-fixed-dim": "#62df7d",
+              "on-primary-fixed-variant": "#005320",
+              "tertiary-fixed-dim": "#ffb95f",
+              "surface-bright": "#33394c",
+              "on-error-container": "#ffdad6",
+              "surface-container-high": "#23293c",
+              "on-surface": "#dce1fb",
+              "on-primary": "#003914",
+              "surface-tint": "#62df7d",
+              "surface-container-low": "#151b2d",
+              "inverse-on-surface": "#2a3043",
+              "surface-container-lowest": "#070d1f",
+              "on-secondary-fixed": "#001e2c",
+              "secondary-fixed-dim": "#7bd0ff",
+              "primary-fixed": "#7ffc97",
+              "on-surface-variant": "#bdcaba",
+              "on-primary-fixed": "#002109",
+              "error-container": "#93000a",
+              "on-background": "#dce1fb",
+              "on-secondary": "#00354a"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(25, 31, 49, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .glow-button {
+            background: linear-gradient(135deg, #62df7d 0%, #1ca64d 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#070d1f] flex justify-between items-center px-6 h-16">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#62df7d]" data-icon="sensors">sensors</span>
+<h1 class="text-[#62df7d] font-['Space_Grotesk'] font-extrabold tracking-tighter text-xl">TerraDetect</h1>
+</div>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30">
+<img alt="User profile" data-alt="Portrait of a modern professional user in soft studio lighting with a clean neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7hoXgtHcfs6cvDBAso8esLbOWTHcVX1qLPBceqk_02TtJsksjO1oD_Ed-DnzotmjOlMv7h4AMjh45icZR5yv63UTd3G44QXmOlqZPGTz3VueXJeqz0q-5TOSlh42k9U8vGM7b69I8k8Pcpj4KnCipqC3eke0Y2zdSB0sP-Dm-J87bKcdqtkqRzMBYCRhV_t-eNJ74kWa2DkF7V6otnwy8Uv7tqN1S_fpa0FFY452C9sHgQrnbUxm2T-ILICPvmyfXkHvZf8B_NUSK"/>
+</div>
+</header>
+<main class="pt-20 pb-28 px-6 max-w-5xl mx-auto">
+<!-- Hero Section / Context -->
+<section class="mb-10">
+<h2 class="font-headline text-4xl font-bold tracking-tight text-on-surface mb-2">Predictive Analysis</h2>
+<p class="text-on-surface-variant max-w-xl">Harness satellite data and ground sensors to forecast agricultural outcomes with high-precision neural modeling.</p>
+</section>
+<!-- Dynamic Tabs -->
+<div class="flex flex-wrap gap-2 mb-8 bg-surface-container-lowest p-1.5 rounded-full inline-flex">
+<button class="px-6 py-2.5 rounded-full bg-primary-container text-on-primary-container font-semibold text-sm transition-all">
+                Crop Recommendation
+            </button>
+<button class="px-6 py-2.5 rounded-full text-on-surface-variant hover:text-on-surface font-medium text-sm transition-all">
+                Suitability
+            </button>
+<button class="px-6 py-2.5 rounded-full text-on-surface-variant hover:text-on-surface font-medium text-sm transition-all">
+                Fertilizer
+            </button>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Left Column: Input Form -->
+<div class="lg:col-span-5 space-y-6">
+<div class="bg-surface-container p-8 rounded-xl space-y-6">
+<h3 class="font-headline text-xl font-bold">Soil Composition</h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Nitrogen (N)</label>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl focus:ring-1 focus:ring-primary/40 text-on-surface py-3 px-4" placeholder="42" type="number"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Phosphorus (P)</label>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl focus:ring-1 focus:ring-primary/40 text-on-surface py-3 px-4" placeholder="50" type="number"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Potassium (K)</label>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl focus:ring-1 focus:ring-primary/40 text-on-surface py-3 px-4" placeholder="38" type="number"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">PH Level</label>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl focus:ring-1 focus:ring-primary/40 text-on-surface py-3 px-4" placeholder="6.5" step="0.1" type="number"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Environmental Region</label>
+<select class="w-full bg-surface-container-lowest border-none rounded-xl focus:ring-1 focus:ring-primary/40 text-on-surface py-3 px-4 appearance-none">
+<option>Tropical Wet</option>
+<option>Arid Steppe</option>
+<option>Humid Subtropical</option>
+</select>
+</div>
+<button class="w-full glow-button py-4 rounded-full font-headline font-bold text-on-primary flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                        Generate Prediction
+                        <span class="material-symbols-outlined text-lg" data-icon="auto_awesome">auto_awesome</span>
+</button>
+</div>
+<!-- Auxiliary Data Card -->
+<div class="bg-surface-container-low p-6 rounded-xl flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="cloud_done">cloud_done</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Live Sensor Sync</p>
+<p class="text-xs text-on-surface-variant">Data synced 2 minutes ago from Node #842</p>
+</div>
+</div>
+</div>
+<!-- Right Column: Results Display -->
+<div class="lg:col-span-7 space-y-6">
+<!-- Main Prediction Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Top Result Card -->
+<div class="md:col-span-2 bg-surface-container rounded-xl overflow-hidden relative group">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container to-transparent z-10"></div>
+<img class="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-700" data-alt="vibrant green rice terrace field with misty mountains in the background during a soft morning sunrise" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUHveEuQ6C58rrytJK6yuniAK4rSn7HWAvr2M2iTYg79WQIEt5R5-tA40F_Khu-g8AxktGYyMVWBzM0Ba3M-w8_E5bShPPjrMCcM3FWrZ4j6-KERC_r9wizSpJHCWiW6Tllkf_adnJ3l2kNBcDJu55TRiHwnr_rBTUeNRVATJ34gZnhh1JREHWL5kvWkzoJ_CKwnkCO1WV0vKUXk83MTPYKFigBTUUFfG4KHI5TZ_ulijIO6fO_fmEdnwzVdBQYeTKCKUQ1rw56dJF"/>
+<div class="absolute bottom-0 left-0 p-8 z-20 w-full">
+<div class="flex justify-between items-end">
+<div>
+<span class="bg-primary/20 text-primary text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-3 inline-block">Top Recommendation</span>
+<h3 class="font-headline text-4xl font-extrabold text-on-surface">Oryza Sativa</h3>
+<p class="text-on-surface-variant font-medium">Standard Highland Rice Variety</p>
+</div>
+<div class="text-right">
+<div class="text-5xl font-headline font-bold text-primary">98<span class="text-xl">%</span></div>
+<p class="text-[10px] uppercase font-bold text-outline">Confidence</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Detail Cards -->
+<div class="bg-surface-container p-6 rounded-xl flex flex-col justify-between">
+<div class="flex justify-between items-start mb-8">
+<div class="bg-secondary/10 p-3 rounded-xl text-secondary">
+<span class="material-symbols-outlined" data-icon="water_drop">water_drop</span>
+</div>
+<span class="text-xs font-bold text-on-surface-variant">OPTIMAL</span>
+</div>
+<div>
+<p class="text-on-surface-variant text-xs font-bold uppercase tracking-wider mb-1">Water Requirement</p>
+<p class="font-headline text-2xl font-bold text-on-surface">High Demand</p>
+<p class="text-xs text-outline-variant mt-2">Predicted consumption: 450mm / cycle</p>
+</div>
+</div>
+<div class="bg-surface-container p-6 rounded-xl flex flex-col justify-between">
+<div class="flex justify-between items-start mb-8">
+<div class="bg-tertiary/10 p-3 rounded-xl text-tertiary">
+<span class="material-symbols-outlined" data-icon="calendar_month">calendar_month</span>
+</div>
+<span class="text-xs font-bold text-on-surface-variant">ESTIMATED</span>
+</div>
+<div>
+<p class="text-on-surface-variant text-xs font-bold uppercase tracking-wider mb-1">Harvest Window</p>
+<p class="font-headline text-2xl font-bold text-on-surface">115 - 130 Days</p>
+<p class="text-xs text-outline-variant mt-2">Target window: Late September</p>
+</div>
+</div>
+<!-- Alternate Recommendations -->
+<div class="md:col-span-2 bg-surface-container-low p-8 rounded-xl">
+<h4 class="text-xs font-bold uppercase tracking-widest text-outline mb-6">Secondary Candidates</h4>
+<div class="space-y-4">
+<div class="flex items-center justify-between p-4 bg-surface-container rounded-xl">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center font-headline font-bold">M</div>
+<div>
+<p class="font-bold text-on-surface text-sm">Maize (Sweet Corn)</p>
+<p class="text-xs text-on-surface-variant">Moderate suitability for current pH</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-secondary font-headline font-bold">82%</p>
+</div>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container rounded-xl">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center font-headline font-bold">B</div>
+<div>
+<p class="font-bold text-on-surface text-sm">Black-eyed Peas</p>
+<p class="text-xs text-on-surface-variant">Low nitrogen requirement match</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-secondary font-headline font-bold">64%</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-none bg-[#0c1324]/60 backdrop-blur-xl border-t border-[#33394c]/10 shadow-[0_-10px_30px_rgba(7,13,31,0.5)] flex justify-around items-center h-20 px-4 pb-4">
+<a class="flex flex-col items-center justify-center text-[#bdcaba] opacity-70 hover:text-[#62df7d] transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="Table_Chart">table_chart</span>
+<span class="font-['Inter'] text-[11px] font-medium">Monitor</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#bdcaba] opacity-70 hover:text-[#62df7d] transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="History">history</span>
+<span class="font-['Inter'] text-[11px] font-medium">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#62df7d] bg-[#1ca64d]/10 rounded-xl px-4 py-1 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="Analytics" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="font-['Inter'] text-[11px] font-medium">Predict</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#bdcaba] opacity-70 hover:text-[#62df7d] transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="Settings">settings</span>
+<span class="font-['Inter'] text-[11px] font-medium">Settings</span>
+</a>
+</nav>
+</body></html>
