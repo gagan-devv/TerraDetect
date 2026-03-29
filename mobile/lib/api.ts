@@ -187,7 +187,7 @@ async function request<T>(
           await store.logout();
           const symptom = new Error("Session expired. Please log in again.");
           (symptom as unknown as Record<string, unknown>).cause = refreshErr;
-          // eslint-disable-next-line preserve-caught-error, sonarjs/preserve-caught-error
+          // eslint-disable-next-line sonarjs/preserve-caught-error
           throw symptom;
         }
       }
@@ -260,7 +260,7 @@ async function request<T>(
               "Offline — request queued and will be sent when online.",
             );
             (symptom as unknown as Record<string, unknown>).cause = err;
-            // eslint-disable-next-line preserve-caught-error, sonarjs/preserve-caught-error
+            // eslint-disable-next-line sonarjs/preserve-caught-error
             throw symptom;
           }
         }
@@ -288,7 +288,7 @@ async function request<T>(
       {
         const symptom = new Error(String(err));
         (symptom as unknown as Record<string, unknown>).cause = err;
-        // eslint-disable-next-line preserve-caught-error, sonarjs/preserve-caught-error
+        // eslint-disable-next-line sonarjs/preserve-caught-error
         throw symptom;
       }
     }

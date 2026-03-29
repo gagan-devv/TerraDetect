@@ -63,9 +63,7 @@ export default function Dashboard() {
 
     const router = useRouter();
 
-    const handleManualInput = () => {
-        router.push('/manual-input');
-    };
+    
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -401,6 +399,9 @@ export default function Dashboard() {
                         </Pressable>
                         <Pressable onPress={handleClaimDevice} className='bg-surface-container px-4 py-2 rounded-full mb-2 shadow-sm'>
                             <Text className='text-on-surface'>🧷 Claim Device</Text>
+                        </Pressable>
+                        <Pressable onPress={() => router.push('/manual-input')} className='bg-surface-container px-4 py-2 rounded-full mb-2 shadow-sm'>
+                            <Text className='text-on-surface'>✍️ Manual Input</Text>
                         </Pressable>
                         <Pressable onPress={handleLogout} className='bg-error-container px-4 py-2 rounded-full shadow-sm'>
                             <Text className='text-on-error'>🚪 Logout</Text>

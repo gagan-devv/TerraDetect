@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import { SensorChip, HealthMeter, StatCard } from '../index';
+import { SensorChip, HealthMeter, StatCard } from '../../../mobile/components';
 
 describe('Specialized Components', () => {
   describe('SensorChip', () => {
