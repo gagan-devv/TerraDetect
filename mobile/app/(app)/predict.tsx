@@ -4,10 +4,11 @@ import {
     TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useRouter } from 'expo-router'
 import { api } from '../../lib/api'
 import { getErrorMessage } from '../../lib/error'
 import { useAuthStore } from '../../store/authStore'
-import { useSensorStore } from '../../store/sensorStore'
+import { usePredictionStore } from '../../store/predictionStore'
 
 type Mode = 'crop' | 'suitability' | 'fertilizer'
 
@@ -17,36 +18,16 @@ const CROPS = ['Rice', 'Wheat', 'Maize', 'Cotton', 'Sugarcane', 'Banana', 'Mango
 interface FormValues {
     N: string; P: string; K: string
     temperature: string; humidity: string
-    ph: string; rainfall: string; moisture: string
+    ph: string; rainfall: string; moisture: string; ec: string
     cropName: string; soilType: string
 }
 
 const defaultForm: FormValues = {
     N: '', P: '', K: '', temperature: '',
     humidity: '', ph: '', rainfall: '',
-    moisture: '', cropName: 'Wheat', soilType: 'Black',
+    moisture: '', ec: '', cropName: 'Wheat', soilType: 'Black',
 }
 
-interface CropResult { recommended_crop: string; confidence: number }
-interface SuitabilityTableRow { parameter: string; recommended: number; observed: number; status: string }
-interface SuitabilityResult { crop: string; suitability_score: number; table: SuitabilityTableRow[] }
-interface FertilizerResult {
-    fertilizer: string; composition: string; application: string
-    nitrogen_advice?: string; phosphorus_advice?: string; potassium_advice?: string
-}
-type PredictResult = CropResult | SuitabilityResult | FertilizerResult | null
-
-function isCropResult(r: PredictResult): r is CropResult {
-    return r !== null && 'recommended_crop' in r
-}
-function isSuitabilityResult(r: PredictResult): r is SuitabilityResult {
-    return r !== null && 'suitability_score' in r
-}
-function isFertilizerResult(r: PredictResult): r is FertilizerResult {
-    return r !== null && 'fertilizer' in r
-}
-
-// Rounded-full field input matching stitch design
 function FieldInput({
     label, value, onChange, unit, placeholder,
 }: {
@@ -70,173 +51,82 @@ function FieldInput({
     )
 }
 
-function CropResultView({ result }: { result: CropResult }) {
-    const confidence = result.confidence ?? 0
-    return (
-        <View className="bg-primary/5 rounded-[1.8rem] p-1 mt-2">
-            <View className="bg-surface-container-lowest p-6 rounded-[1.5rem]">
-                <View className="flex-row justify-between items-start mb-4">
-                    <View>
-                        <View className="bg-primary/10 rounded-sm px-3 py-1 self-start mb-2">
-                            <Text className="font-label text-[10px] uppercase tracking-widest font-bold text-primary">Top Match</Text>
-                        </View>
-                        <Text className="font-headline font-extrabold text-5xl text-primary capitalize">
-                            {result.recommended_crop}
-                        </Text>
-                    </View>
-                    <View className="items-end">
-                        <Text className="font-headline font-black text-4xl text-on-surface">
-                            {confidence.toFixed(0)}%
-                        </Text>
-                        <Text className="text-xs font-label text-on-surface-variant uppercase tracking-tighter">
-                            Confidence
-                        </Text>
-                    </View>
-                </View>
-                {/* Progress bar */}
-                <View className="flex-row items-center gap-3">
-                    <View className="flex-1 bg-surface-container rounded-full h-3 overflow-hidden">
-                        <View
-                            className="bg-primary h-full rounded-full"
-                            style={{ width: `${Math.min(confidence, 100)}%` }}
-                        />
-                    </View>
-                    <Text className="text-primary text-lg">✓</Text>
-                </View>
-            </View>
-        </View>
-    )
-}
-
-function SuitabilityResultView({ result }: { result: SuitabilityResult }) {
-    return (
-        <View className="mt-4 space-y-3">
-            <View className="bg-surface-container-lowest p-6 rounded-lg border-l-4 border-secondary">
-                <Text className="font-headline font-bold text-2xl text-secondary capitalize mb-1">
-                    {result.crop}
-                </Text>
-                <Text className="text-on-surface-variant text-sm">
-                    Suitability Score: <Text className="font-bold text-on-surface">{result.suitability_score?.toFixed(1)}%</Text>
-                </Text>
-            </View>
-            {result.table?.map((row, i) => (
-                <View
-                    key={i}
-                    className="flex-row justify-between items-center px-4 py-3 rounded-lg"
-                    style={{
-                        backgroundColor: row.status === 'optimal' ? 'rgba(0,107,44,0.08)' :
-                            row.status === 'low' ? 'rgba(130,81,0,0.08)' : 'rgba(186,26,26,0.08)'
-                    }}
-                >
-                    <Text className="font-body text-sm font-medium text-on-surface">{row.parameter}</Text>
-                    <Text className="text-on-surface-variant text-xs font-label">{row.observed} / {row.recommended}</Text>
-                    <Text className={`text-xs font-bold font-label uppercase tracking-wider ${row.status === 'optimal' ? 'text-primary' : row.status === 'low' ? 'text-tertiary' : 'text-error'
-                        }`}>
-                        {row.status}
-                    </Text>
-                </View>
-            ))}
-        </View>
-    )
-}
-
-function FertilizerResultView({ result }: { result: FertilizerResult }) {
-    return (
-        <View className="mt-4 space-y-4">
-            <View className="bg-surface-container-lowest p-6 rounded-lg border-l-4 border-tertiary">
-                <View className="flex-row items-center gap-3 mb-3">
-                    <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: 'rgba(130,81,0,0.10)' }}>
-                        <Text className="text-xl">🧪</Text>
-                    </View>
-                    <View>
-                        <Text className="font-headline font-bold text-lg text-on-surface">{result.fertilizer}</Text>
-                        <Text className="text-on-surface-variant text-xs font-label">{result.composition}</Text>
-                    </View>
-                </View>
-                <Text className="text-on-surface-variant text-sm font-body leading-relaxed">{result.application}</Text>
-            </View>
-            {result.nitrogen_advice && (
-                <View className="bg-surface-container-lowest p-5 rounded-lg border-l-4 border-primary">
-                    <Text className="font-headline font-bold text-base mb-1">Nitrogen Advice</Text>
-                    <Text className="text-on-surface-variant text-sm font-body">{result.nitrogen_advice}</Text>
-                </View>
-            )}
-            {result.phosphorus_advice && (
-                <View className="bg-surface-container-lowest p-5 rounded-lg border-l-4 border-secondary">
-                    <Text className="font-headline font-bold text-base mb-1">Phosphorus Advice</Text>
-                    <Text className="text-on-surface-variant text-sm font-body">{result.phosphorus_advice}</Text>
-                </View>
-            )}
-            {result.potassium_advice && (
-                <View className="bg-surface-container-lowest p-5 rounded-lg border-l-4 border-tertiary">
-                    <Text className="font-headline font-bold text-base mb-1">Potassium Advice</Text>
-                    <Text className="text-on-surface-variant text-sm font-body">{result.potassium_advice}</Text>
-                </View>
-            )}
-        </View>
-    )
-}
-
 export default function PredictScreen() {
-    const { accessToken } = useAuthStore()
-    const { latest: sensorData } = useSensorStore()
+    const router = useRouter()
+    const { accessToken, isGuest } = useAuthStore()
+    const { setResult } = usePredictionStore()
 
     const [mode, setMode] = useState<Mode>('crop')
     const [form, setForm] = useState<FormValues>(defaultForm)
-    const [useSensor, setUseSensor] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const [result, setResult] = useState<PredictResult>(null)
 
     const setField = (field: keyof FormValues) => (value: string) =>
         setForm((prev) => ({ ...prev, [field]: value }))
 
-    const fillFromSensor = () => {
-        if (!sensorData) return Alert.alert('No sensor data', 'Fetch data from the dashboard first.')
-        setForm((prev) => ({
-            ...prev,
-            N: sensorData.N.toFixed(1),
-            P: sensorData.P.toFixed(1),
-            K: sensorData.K.toFixed(1),
-            temperature: sensorData.temperature.toFixed(1),
-            humidity: sensorData.humidity.toFixed(1),
-            ph: sensorData.ph.toFixed(1),
-            moisture: sensorData.moisture.toFixed(1),
-        }))
-        setUseSensor(true)
-    }
-
     const handleSubmit = async () => {
-        if (!accessToken) return
+        // Mode-specific validation
+        let requiredFields = ['N', 'P', 'K', 'temperature', 'humidity', 'ph']
+        
+        if (mode === 'crop') {
+            requiredFields.push('rainfall')
+        } else if (mode === 'suitability') {
+            requiredFields.push('rainfall')
+        } else if (mode === 'fertilizer') {
+            requiredFields.push('moisture')
+        }
+        
+        const emptyFields = requiredFields.filter(field => !form[field as keyof FormValues] || form[field as keyof FormValues].trim() === '')
+        
+        if (emptyFields.length > 0) {
+            Alert.alert('Missing Fields', `Please fill in all required fields: ${emptyFields.join(', ')}`)
+            return
+        }
+
         setIsLoading(true)
-        setResult(null)
-        const source = useSensor ? 'sensor' : 'manual'
         const num = (v: string) => parseFloat(v) || 0
 
         try {
-            let res: PredictResult
-            if (mode === 'crop') {
-                res = await api.predictCrop(accessToken, {
-                    source, N: num(form.N), P: num(form.P), K: num(form.K),
-                    temperature: num(form.temperature), humidity: num(form.humidity),
-                    ph: num(form.ph), rainfall: num(form.rainfall),
-                })
-            } else if (mode === 'suitability') {
-                if (!form.cropName) return Alert.alert('Error', 'Select a crop first.')
-                res = await api.predictSuitability(accessToken, {
-                    source, crop_name: form.cropName,
-                    N: num(form.N), P: num(form.P), K: num(form.K),
-                    temperature: num(form.temperature), humidity: num(form.humidity),
-                    ph: num(form.ph), rainfall: num(form.rainfall),
-                })
-            } else {
-                res = await api.predictFertilizer(accessToken, {
-                    source, crop_name: form.cropName, soil_type: form.soilType,
-                    N: num(form.N), P: num(form.P), K: num(form.K),
-                    temperature: num(form.temperature), humidity: num(form.humidity),
-                    ph: num(form.ph), moisture: num(form.moisture), rainfall: num(form.rainfall),
-                })
+            let res
+            const payload = {
+                source: 'manual',
+                N: num(form.N),
+                P: num(form.P),
+                K: num(form.K),
+                temperature: num(form.temperature),
+                humidity: num(form.humidity),
+                ph: num(form.ph),
             }
-            setResult(res)
+
+            if (mode === 'crop') {
+                const cropPayload = { ...payload, rainfall: num(form.rainfall) }
+                res = isGuest 
+                    ? await api.guestPredictCrop(cropPayload)
+                    : await api.predictCrop(accessToken, cropPayload)
+            } else if (mode === 'suitability') {
+                if (!form.cropName) {
+                    Alert.alert('Error', 'Select a crop first.')
+                    setIsLoading(false)
+                    return
+                }
+                const suitPayload = { ...payload, crop_name: form.cropName, rainfall: num(form.rainfall) }
+                res = isGuest
+                    ? await api.guestPredictSuitability(suitPayload)
+                    : await api.predictSuitability(accessToken, suitPayload)
+            } else {
+                const fertPayload = {
+                    ...payload,
+                    crop_name: form.cropName,
+                    soil_type: form.soilType,
+                    moisture: num(form.moisture),
+                    rainfall: num(form.rainfall) || 100,
+                }
+                res = isGuest
+                    ? await api.guestPredictFertilizer(fertPayload)
+                    : await api.predictFertilizer(accessToken, fertPayload)
+            }
+            // Store result and navigate to output page
+            setResult(res, mode, 'manual')
+            router.push('/(app)/output')
         } catch (err) {
             Alert.alert('Prediction failed', getErrorMessage(err))
         } finally {
@@ -257,8 +147,17 @@ export default function PredictScreen() {
                 <View className="flex-row items-center gap-3">
                     <Text className="text-primary text-2xl">🌱</Text>
                     <Text className="font-headline font-black text-2xl text-primary tracking-tight">TerraDetect</Text>
+                    {isGuest && (
+                        <View className="bg-tertiary-container px-3 py-1 rounded-full">
+                            <Text className="text-on-tertiary-container font-label font-bold text-xs uppercase tracking-wider">
+                                Guest
+                            </Text>
+                        </View>
+                    )}
                 </View>
-                <Text className="text-on-surface-variant text-2xl">🔔</Text>
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Text className="text-on-surface-variant text-2xl">←</Text>
+                </TouchableOpacity>
             </View>
 
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }}>
@@ -266,10 +165,10 @@ export default function PredictScreen() {
                     {/* Page Title */}
                     <View className="py-6">
                         <Text className="font-headline font-extrabold text-4xl text-on-surface mb-1">
-                            AI Predictions
+                            Manual Input
                         </Text>
                         <Text className="text-on-surface-variant font-body opacity-80">
-                            Harnessing machine learning for precision agronomy.
+                            Enter soil parameters manually for prediction.
                         </Text>
                     </View>
 
@@ -283,7 +182,7 @@ export default function PredictScreen() {
                         {tabs.map(tab => (
                             <TouchableOpacity
                                 key={tab.id}
-                                onPress={() => { setMode(tab.id); setResult(null) }}
+                                onPress={() => setMode(tab.id)}
                                 className={`px-5 py-3 rounded-full ${mode === tab.id
                                     ? 'bg-primary-container'
                                     : 'bg-surface-container-high'
@@ -296,17 +195,6 @@ export default function PredictScreen() {
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
-
-                    {/* Sensor Auto-Fill Banner */}
-                    {sensorData && (
-                        <TouchableOpacity
-                            onPress={fillFromSensor}
-                            className="bg-surface-container-lowest rounded-full px-5 py-3 mb-6 flex-row items-center justify-between border-l-4 border-secondary"
-                        >
-                            <Text className="text-on-surface font-body font-medium text-sm">Use live sensor data</Text>
-                            <Text className="text-secondary font-label text-xs font-bold uppercase tracking-wider">Tap to fill →</Text>
-                        </TouchableOpacity>
-                    )}
 
                     {/* Input Form Section */}
                     <View className="bg-surface-container-low p-6 rounded-lg mb-6">
@@ -371,12 +259,22 @@ export default function PredictScreen() {
                                 <FieldInput label="Temperature (°C)" value={form.temperature} onChange={setField('temperature')} unit="°C" placeholder="24.5" />
                             </View>
                             <View className="flex-1">
-                                <FieldInput label="Soil pH" value={form.ph} onChange={setField('ph')} unit="0–14" placeholder="6.5" />
+                                <FieldInput label="Humidity (%)" value={form.humidity} onChange={setField('humidity')} unit="%" placeholder="80" />
                             </View>
                         </View>
-                        <FieldInput label="Rainfall (mm)" value={form.rainfall} onChange={setField('rainfall')} unit="mm" placeholder="200" />
+                        <View className="flex-row gap-3">
+                            <View className="flex-1">
+                                <FieldInput label="Soil pH" value={form.ph} onChange={setField('ph')} unit="0–14" placeholder="6.5" />
+                            </View>
+                            <View className="flex-1">
+                                <FieldInput label="EC (mS/cm)" value={form.ec} onChange={setField('ec')} unit="mS/cm" placeholder="1.5" />
+                            </View>
+                        </View>
+                        {mode !== 'fertilizer' && (
+                            <FieldInput label="Rainfall (mm)" value={form.rainfall} onChange={setField('rainfall')} unit="mm" placeholder="200" />
+                        )}
                         {mode === 'fertilizer' && (
-                            <FieldInput label="Moisture (%)" value={form.moisture} onChange={setField('moisture')} unit="%" />
+                            <FieldInput label="Moisture (%)" value={form.moisture} onChange={setField('moisture')} unit="%" placeholder="50" />
                         )}
 
                         {/* Signature Gradient Submit Button */}
@@ -400,11 +298,6 @@ export default function PredictScreen() {
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
-
-                    {/* Results Section */}
-                    {isCropResult(result) && <CropResultView result={result} />}
-                    {isSuitabilityResult(result) && <SuitabilityResultView result={result} />}
-                    {isFertilizerResult(result) && <FertilizerResultView result={result} />}
                 </View>
             </ScrollView>
         </View>

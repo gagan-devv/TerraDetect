@@ -32,11 +32,13 @@ interface AuthState {
   username: string | null;
   deviceId: string | null;
   accessExpiry?: number | null;
+  isGuest: boolean;
 
   login: (
     tokens: { accessToken: string; refreshToken: string },
     user: { username: string; deviceId: string },
   ) => Promise<void>;
+  loginAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
   setAccessToken: (token: string) => void;
   loadFromStorage: () => Promise<void>;
@@ -47,12 +49,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshToken: null,
   username: null,
   deviceId: null,
+  isGuest: false,
 
   login: async ({ accessToken, refreshToken }, { username, deviceId }) => {
     await storage.setItem("access_token", accessToken);
     await storage.setItem("refresh_token", refreshToken);
     await storage.setItem("username", username);
     await storage.setItem("device_id", deviceId);
+    await storage.removeItem("is_guest");
     // Try to parse expiry from JWT (exp claim)
     let accessExpiry: number | null = null;
     try {
@@ -78,7 +82,37 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (accessExpiry)
       await storage.setItem("access_expiry", String(accessExpiry));
     await storage.setItem("access_token", accessToken);
-    set({ accessToken, refreshToken, username, deviceId, accessExpiry });
+    set({ accessToken, refreshToken, username, deviceId, accessExpiry, isGuest: false });
+  },
+
+  loginAsGuest: async () => {
+    try {
+      const response = await api.getGuestToken();
+      
+      // Calculate expiry
+      const accessExpiry = Date.now() + (response.expires_in * 1000);
+      
+      // Update state FIRST (synchronous)
+      set({ 
+        accessToken: response.access_token, 
+        refreshToken: null,
+        username: "guest",
+        deviceId: null,
+        accessExpiry,
+        isGuest: true 
+      });
+      
+      // Then persist to storage (async, but state is already updated)
+      await storage.setItem("access_token", response.access_token);
+      await storage.setItem("is_guest", "true");
+      await storage.setItem("username", "guest");
+      await storage.setItem("access_expiry", String(accessExpiry));
+      await storage.removeItem("refresh_token");
+      await storage.removeItem("device_id");
+    } catch (err) {
+      console.error("Failed to get guest token", err);
+      throw err;
+    }
   },
 
   logout: async () => {
@@ -96,12 +130,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     await storage.removeItem("username");
     await storage.removeItem("device_id");
     await storage.removeItem("access_expiry");
+    await storage.removeItem("is_guest");
     set({
       accessToken: null,
       refreshToken: null,
       username: null,
       deviceId: null,
       accessExpiry: null,
+      isGuest: false,
     });
   },
 
@@ -113,9 +149,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     const username = await storage.getItem("username");
     const deviceId = await storage.getItem("device_id");
     const accessExpiryRaw = await storage.getItem("access_expiry");
+    const isGuestRaw = await storage.getItem("is_guest");
     const accessExpiry = accessExpiryRaw ? Number(accessExpiryRaw) : null;
+    const isGuest = isGuestRaw === "true";
+    
     if (accessToken) {
-      set({ accessToken, refreshToken, username, deviceId, accessExpiry });
+      set({ accessToken, refreshToken, username, deviceId, accessExpiry, isGuest });
     }
   },
 }));

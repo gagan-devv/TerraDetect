@@ -53,7 +53,13 @@ func main() {
 	r.POST("/api/v1/auth/register",  middleware.NewLimiter("3-M"), authH.Register)
 	r.POST("/api/v1/auth/login",     middleware.NewLimiter("5-M"), authH.Login)
 	r.POST("/api/v1/auth/refresh",   authH.Refresh)
+	r.POST("/api/v1/auth/guest",     middleware.NewLimiter("10-M"), authH.GuestToken)
 	r.POST("/api/v1/device/check",   deviceH.Check)
+
+	// ── Guest prediction endpoints (no auth required) ─────────────────────────
+	r.POST("/api/v1/guest/predict/crop",        middleware.NewLimiter("10-M"), predictH.GuestCrop)
+	r.POST("/api/v1/guest/predict/suitability", middleware.NewLimiter("10-M"), predictH.GuestSuitability)
+	r.POST("/api/v1/guest/predict/fertilizer",  middleware.NewLimiter("10-M"), predictH.GuestFertilizer)
 
 	// ── Protected routes ──────────────────────────────────────────────────────
 	protected := r.Group("/api/v1")
@@ -61,14 +67,15 @@ func main() {
 	{
 		protected.POST("/auth/logout", authH.Logout)
 
-		protected.GET("/sensor/latest",  sensorH.Latest)
-		protected.GET("/sensor/history", sensorH.History)
+		// User-only routes (guest tokens blocked)
+		protected.GET("/sensor/latest",  middleware.RequireUser(), sensorH.Latest)
+		protected.GET("/sensor/history", middleware.RequireUser(), sensorH.History)
+		protected.GET("/weather",        middleware.RequireUser(), weatherH.Get)
 
+		// Prediction routes (guest tokens allowed)
 		protected.POST("/predict/crop",        predictH.Crop)
 		protected.POST("/predict/suitability", predictH.Suitability)
 		protected.POST("/predict/fertilizer",  predictH.Fertilizer)
-
-		protected.GET("/weather", weatherH.Get)
 	}
 
 	log.Printf("TerraDetect backend listening on :%s", cfg.Port)

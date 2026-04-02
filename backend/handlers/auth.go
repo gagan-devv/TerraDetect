@@ -359,11 +359,46 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully."})
 }
 
+func (h *AuthHandler) GuestToken(c *gin.Context) {
+	// Generate a guest token valid for 30 minutes
+	guestToken, err := h.generateGuestToken(30 * time.Minute)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{
+				"code":    "INTERNAL_ERROR",
+				"message": "Failed to generate guest token.",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": guestToken,
+		"expires_in":   1800, // 30 minutes in seconds
+		"token_type":   "Bearer",
+		"user_type":    "guest",
+	})
+}
+
 func (h *AuthHandler) generateToken(username, deviceID, tokenType string, duration time.Duration) (string, error) {
 	claims := jwt.MapClaims{
 		"username":   username,
 		"device_id":  deviceID,
 		"token_type": tokenType,
+		"exp":        time.Now().Add(duration).Unix(),
+		"iat":        time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString([]byte(h.cfg.SecretKey))
+}
+
+func (h *AuthHandler) generateGuestToken(duration time.Duration) (string, error) {
+	claims := jwt.MapClaims{
+		"username":   "guest",
+		"device_id":  "",
+		"token_type": "guest",
 		"exp":        time.Now().Add(duration).Unix(),
 		"iat":        time.Now().Unix(),
 	}

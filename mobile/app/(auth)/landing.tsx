@@ -141,10 +141,19 @@ export default function LandingScreen() {
 
                 <Pressable
                     onPress={() => router.push("/(auth)/register")}
-                    className="bg-surface-container-high dark:bg-surface-container-high-dark py-5 rounded-full items-center active:opacity-80"
+                    className="bg-surface-container-high dark:bg-surface-container-high-dark py-5 rounded-full items-center active:opacity-80 mb-4"
                 >
                     <Text className="text-on-surface dark:text-on-surface-dark font-headline font-bold text-lg">
                         Create Account
+                    </Text>
+                </Pressable>
+
+                <Pressable
+                    onPress={() => router.push("/(auth)/guest")}
+                    className="border-2 border-primary dark:border-primary-dark py-5 rounded-full items-center active:opacity-80"
+                >
+                    <Text className="text-primary dark:text-primary-dark font-headline font-bold text-lg">
+                        Try as Guest
                     </Text>
                 </Pressable>
 

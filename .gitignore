@@ -6,3 +6,5 @@ sketches/secrets.h
 .env
 .vscode
 .kiro
+
+stitch/

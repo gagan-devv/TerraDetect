@@ -308,6 +308,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  getGuestToken: () =>
+    request<{ access_token: string; expires_in: number; token_type: string; user_type: string }>(
+      "/api/v1/auth/guest",
+      { method: "POST" },
+    ),
   latestSensor: (token: string) =>
     request<SensorData>("/api/v1/sensor/latest", {}, token),
   sensorHistory: (token: string, page: number, perPage: number) =>
@@ -325,7 +330,7 @@ export const api = {
   // Guest/anonymous prediction API (no auth token required)
   guestPredictCrop: (body: object) =>
     request<CropResult>(
-      "/api/v1/predict/crop",
+      "/api/v1/guest/predict/crop",
       { method: "POST", body: JSON.stringify(body) },
       undefined,
     ),
@@ -335,11 +340,23 @@ export const api = {
       { method: "POST", body: JSON.stringify(body) },
       token,
     ),
+  guestPredictFertilizer: (body: object) =>
+    request<FertilizerResult>(
+      "/api/v1/guest/predict/fertilizer",
+      { method: "POST", body: JSON.stringify(body) },
+      undefined,
+    ),
   predictSuitability: (token: string, body: object) =>
     request<SuitabilityResponse>(
       "/api/v1/predict/suitability",
       { method: "POST", body: JSON.stringify(body) },
       token,
+    ),
+  guestPredictSuitability: (body: object) =>
+    request<SuitabilityResponse>(
+      "/api/v1/guest/predict/suitability",
+      { method: "POST", body: JSON.stringify(body) },
+      undefined,
     ),
   logout: (refreshToken: string) =>
     request<void>(
