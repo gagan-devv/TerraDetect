@@ -1,0 +1,59 @@
+# Ignore unnecessary files during Docker build
+
+# Mobile app
+mobile/
+
+# Documentation
+docs/
+*.md
+README.md
+
+# Git
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Test files
+*_test.go
+**/*_test.go
+testdata/
+
+# Build artifacts
+backend/app
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Scripts
+scripts/
+sketches/
+
+# Stitch (design files)
+stitch/
+
+# Python
+ml/*.py
+ml/__pycache__/
+ml/*.pyc
+ml/.pytest_cache/
+ml/venv/
+ml/*.csv
+ml/*.pkl
+
+# Keep only ONNX models
+!ml/*.onnx
+
+# Spec files
+.kiro/
