@@ -1,14 +1,14 @@
 # Build stage
-FROM golang:1.26-alpine AS builder
+FROM golang:1.26-bookworm AS builder
 
 # Install build dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     git \
     gcc \
     g++ \
-    musl-dev \
     curl \
-    tar
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Download and install ONNX Runtime
 WORKDIR /tmp
