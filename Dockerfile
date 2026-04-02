@@ -40,11 +40,12 @@ RUN CGO_ENABLED=1 GOOS=linux CGO_LDFLAGS="-L/usr/local/lib" CGO_CFLAGS="-I/usr/l
 # Runtime stage
 FROM alpine:latest
 
-# Install runtime dependencies
+# Install runtime dependencies including glibc compatibility
 RUN apk add --no-cache \
     ca-certificates \
     libstdc++ \
-    libgomp
+    libgomp \
+    gcompat
 
 # Copy ONNX Runtime libraries from builder
 COPY --from=builder /usr/local/lib/libonnxruntime.so* /usr/local/lib/
