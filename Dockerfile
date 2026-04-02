@@ -29,11 +29,11 @@ RUN apt-get update && apt-get install -y ca-certificates libgomp1 libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/lib/libonnxruntime.so* /usr/local/lib/
-RUN ldconfig   # ← don't forget this
+RUN ldconfig
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 WORKDIR /backend
 COPY --from=builder /app/app ./app
-COPY ml/*.onnx ./ml/
+COPY ml/*.onnx /ml/
 EXPOSE 8080
 CMD ["./app"]
