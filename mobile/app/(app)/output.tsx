@@ -183,7 +183,7 @@ export default function OutputScreen() {
         try {
             let res
             if (mode === 'crop') {
-                res = await api.predictCrop(accessToken, {
+                res = await api.predictCrop(accessToken!, {
                     source: 'sensor',
                     N: sample.N,
                     P: sample.P,
@@ -194,7 +194,7 @@ export default function OutputScreen() {
                     rainfall: 200,
                 })
             } else if (mode === 'suitability') {
-                res = await api.predictSuitability(accessToken, {
+                res = await api.predictSuitability(accessToken!, {
                     source: 'sensor',
                     crop_name: 'Wheat',
                     N: sample.N,
@@ -206,7 +206,7 @@ export default function OutputScreen() {
                     rainfall: 200,
                 })
             } else {
-                res = await api.predictFertilizer(accessToken, {
+                res = await api.predictFertilizer(accessToken!, {
                     source: 'sensor',
                     crop_name: 'Wheat',
                     soil_type: 'Black',
@@ -237,7 +237,7 @@ export default function OutputScreen() {
         try {
             let res
             if (mode === 'crop') {
-                res = await api.predictCrop(accessToken, {
+                res = await api.predictCrop(accessToken!, {
                     source: 'sensor',
                     N: sensorData.N,
                     P: sensorData.P,
@@ -248,7 +248,7 @@ export default function OutputScreen() {
                     rainfall: 200, // Default value
                 })
             } else if (mode === 'suitability') {
-                res = await api.predictSuitability(accessToken, {
+                res = await api.predictSuitability(accessToken!, {
                     source: 'sensor',
                     crop_name: 'Wheat',
                     N: sensorData.N,
@@ -260,7 +260,7 @@ export default function OutputScreen() {
                     rainfall: 200,
                 })
             } else {
-                res = await api.predictFertilizer(accessToken, {
+                res = await api.predictFertilizer(accessToken!, {
                     source: 'sensor',
                     crop_name: 'Wheat',
                     soil_type: 'Black',

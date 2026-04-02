@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { username, email, logout } = useAuthStore();
+  const { username, logout } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editedUsername, setEditedUsername] = useState(username || '');
 
@@ -63,18 +63,14 @@ export default function ProfileScreen() {
               <TextInput
                 value={editedUsername}
                 onChangeText={setEditedUsername}
-                className="font-headline font-bold text-2xl text-on-surface dark:text-on-surface-dark text-center bg-surface-container-high dark:bg-surface-container-high-dark px-4 py-2 rounded-full mb-2"
+                className="font-headline font-bold text-2xl text-on-surface dark:text-on-surface-dark text-center bg-surface-container-high dark:bg-surface-container-high-dark px-4 py-2 rounded-full mb-4"
                 autoFocus
               />
             ) : (
-              <Text className="font-headline font-bold text-2xl text-on-surface dark:text-on-surface-dark mb-2">
+              <Text className="font-headline font-bold text-2xl text-on-surface dark:text-on-surface-dark mb-4">
                 {username || 'Farmer'}
               </Text>
             )}
-
-            <Text className="font-label text-sm text-on-surface-variant dark:text-on-surface-variant-dark mb-4">
-              {email || 'farmer@terradetect.com'}
-            </Text>
 
             {/* Edit/Save Button */}
             {isEditing ? (
@@ -124,15 +120,6 @@ export default function ProfileScreen() {
                 </Text>
                 <Text className="font-body text-base text-on-surface dark:text-on-surface-dark">
                   {username || 'Not set'}
-                </Text>
-              </View>
-
-              <View className="px-5 py-4 border-b border-outline-variant/20 dark:border-outline-variant-dark/20">
-                <Text className="font-label text-xs text-on-surface-variant dark:text-on-surface-variant-dark uppercase tracking-wider mb-1">
-                  Email
-                </Text>
-                <Text className="font-body text-base text-on-surface dark:text-on-surface-dark">
-                  {email || 'Not set'}
                 </Text>
               </View>
 

@@ -101,7 +101,7 @@ export default function PredictScreen() {
                 const cropPayload = { ...payload, rainfall: num(form.rainfall) }
                 res = isGuest 
                     ? await api.guestPredictCrop(cropPayload)
-                    : await api.predictCrop(accessToken, cropPayload)
+                    : await api.predictCrop(accessToken!, cropPayload)
             } else if (mode === 'suitability') {
                 if (!form.cropName) {
                     Alert.alert('Error', 'Select a crop first.')
@@ -111,7 +111,7 @@ export default function PredictScreen() {
                 const suitPayload = { ...payload, crop_name: form.cropName, rainfall: num(form.rainfall) }
                 res = isGuest
                     ? await api.guestPredictSuitability(suitPayload)
-                    : await api.predictSuitability(accessToken, suitPayload)
+                    : await api.predictSuitability(accessToken!, suitPayload)
             } else {
                 const fertPayload = {
                     ...payload,
@@ -122,7 +122,7 @@ export default function PredictScreen() {
                 }
                 res = isGuest
                     ? await api.guestPredictFertilizer(fertPayload)
-                    : await api.predictFertilizer(accessToken, fertPayload)
+                    : await api.predictFertilizer(accessToken!, fertPayload)
             }
             // Store result and navigate to output page
             setResult(res, mode, 'manual')

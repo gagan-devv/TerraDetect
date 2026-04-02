@@ -138,7 +138,7 @@ export default function Dashboard() {
                 P: data.P,
                 K: data.K,
             };
-            const res = await api.predictCrop(accessToken, body);
+            const res = await api.predictCrop(accessToken!, body);
             Alert.alert('Prediction', `Recommended crop: ${res.recommended_crop}\nConfidence: ${Math.round(res.confidence * 100)}%`);
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
