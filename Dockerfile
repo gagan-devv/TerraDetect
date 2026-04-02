@@ -38,14 +38,13 @@ COPY backend/ ./
 RUN CGO_ENABLED=1 GOOS=linux CGO_LDFLAGS="-L/usr/local/lib" CGO_CFLAGS="-I/usr/local/include" go build -o app .
 
 # Runtime stage
-FROM alpine:latest
+FROM debian:bookworm-slim
 
-# Install runtime dependencies including glibc compatibility
-RUN apk add --no-cache \
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
     ca-certificates \
-    libstdc++ \
-    libgomp \
-    gcompat
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy ONNX Runtime libraries from builder
 COPY --from=builder /usr/local/lib/libonnxruntime.so* /usr/local/lib/
