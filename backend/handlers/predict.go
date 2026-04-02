@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"strings"
@@ -109,10 +110,60 @@ func (h *PredictHandler) Crop(c *gin.Context) {
 
 	crop, confidence, err := h.onnx.PredictCrop(features)
 	if err != nil {
+		log.Printf("Crop inference error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": gin.H{
 				"code":    "INTERNAL_ERROR",
-				"message": "Crop mdoel inference failed.",
+				"message": fmt.Sprintf("Crop model inference failed: %v", err),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"recommended_crop": crop,
+		"confidence":       math.Round(confidence*100) / 100,
+	})
+}
+
+// GuestCrop handles crop prediction for guest users (no auth required)
+func (h *PredictHandler) GuestCrop(c *gin.Context) {
+	var req predictRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Guest users can only use manual source
+	if req.Source != "manual" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "INVALID_SOURCE",
+				"message": "Guest users can only use manual input.",
+			},
+		})
+		return
+	}
+
+	features := []float32{
+		float32(req.N), float32(req.P), float32(req.K),
+		float32(req.Temp), float32(req.Humidity), float32(req.PH),
+		float32(req.Rainfall),
+	}
+
+	crop, confidence, err := h.onnx.PredictCrop(features)
+	if err != nil {
+		log.Printf("GuestCrop inference error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{
+				"code":    "INTERNAL_ERROR",
+				"message": fmt.Sprintf("Crop model inference failed: %v", err),
 			},
 		})
 		return
@@ -170,6 +221,123 @@ func (h *PredictHandler) Suitability(c *gin.Context) {
 			"error": gin.H{
 				"code":    "INTERNAL_ERROR",
 				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	if req.CropName == "" {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "crop_name is required.",
+			},
+		})
+		return
+	}
+
+	cropKey := strings.ToLower(strings.ReplaceAll(req.CropName, " ", ""))
+	ideal, ok := idealValues[cropKey]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "NOT_FOUND",
+				"message": "Crop not found in dataset.",
+			},
+		})
+		return
+	}
+
+	observed := [7]float64{
+		req.N, req.P, req.K,
+		req.Temp, req.Humidity, req.PH, req.Rainfall,
+	}
+
+	var totalDeviation float64
+	for i := 0; i < 7; i++ {
+		maxDev := ideal[i] * 0.2
+		if maxDev == 0 {
+			maxDev = 1
+		}
+		totalDeviation += math.Abs(observed[i]-ideal[i]) / maxDev
+	}
+	score := math.Abs(100 - (totalDeviation * 100 / 7))
+	score = math.Mod(score, 100)
+	score = math.Round(score*100) / 100
+
+	fertAdvice := map[string]string{
+		"Nitrogen (N)":   "Apply nitrogen-rich fertilizers like urea or ammonium sulfate.",
+		"Phosphorus (P)": "Use phosphorus fertilizers such as bone meal or superphosphate.",
+		"Potassium (K)":  "Add potassium-based fertilizers like potash or wood ash.",
+		"Temperature":    "Use greenhouse techniques or choose planting times strategically.",
+		"Humidity":       "Implement irrigation systems or use mulching techniques.",
+		"pH":             "Add lime to increase pH or sulfur to decrease pH.",
+		"Rainfall":       "Use drip irrigation or rainwater harvesting techniques.",
+	}
+
+	var table []tableRow
+	var recommendations []string
+
+	for i := 0; i < 7; i++ {
+		row := tableRow{
+			Parameter:   paramNames[i],
+			Recommended: math.Round(ideal[i]*100) / 100,
+			Observed:    math.Round(observed[i]*100) / 100,
+
+			Status:  "optimal",
+			Remarks: "Optimial",
+		}
+		low := ideal[i] * 0.8
+		high := ideal[i] * 1.2
+
+		switch {
+		case observed[i] < low:
+			shortage := math.Round((ideal[i] - observed[i]) * 100 / 100)
+			row.Status = "low"
+			row.Remarks = fmt.Sprintf("%s is too low. Increase by %.2f. %s", paramNames[i], shortage, fertAdvice[paramNames[i]])
+			recommendations = append(recommendations, fmt.Sprintf("%s is too low. Increase by %.2f.", paramNames[i], shortage))
+
+		case observed[i] > high:
+			excess := math.Round((observed[i] - ideal[i]) * 100 / 100)
+			row.Status = "high"
+			if paramNames[i] == "Humidity" || paramNames[i] == "Rainfall" {
+				row.Remarks = "Too high."
+			} else {
+				row.Remarks = fmt.Sprintf("Too high. Decrement by %.2f. Consider soil amendments.", excess)
+				recommendations = append(recommendations, fmt.Sprintf("%s is too high. Decrease by %.2f.", paramNames[i], excess))
+			}
+		}
+
+		table = append(table, row)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"crop":              req.CropName,
+		"suitability_score": score,
+		"table":             table,
+		"recommendations":   recommendations,
+	})
+}
+
+// GuestSuitability handles suitability analysis for guest users (no auth required)
+func (h *PredictHandler) GuestSuitability(c *gin.Context) {
+	var req predictRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{
+				"code":    "INTERNAL_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Guest users can only use manual source
+	if req.Source != "manual" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "INVALID_SOURCE",
+				"message": "Guest users can only use manual input.",
 			},
 		})
 		return
@@ -390,4 +558,73 @@ func applicationAdvice(fertilizer, crop string) string {
 		advice += " For commercial crops, apply in bands along the rows."
 	}
 	return advice
+}
+
+
+// GuestFertilizer handles fertilizer recommendation for guest users (no auth required)
+func (h *PredictHandler) GuestFertilizer(c *gin.Context) {
+	var req predictRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": gin.H{"code": "VALIDATION_ERROR", "message": err.Error()},
+		})
+		return
+	}
+
+	// Guest users can only use manual source
+	if req.Source != "manual" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "INVALID_SOURCE",
+				"message": "Guest users can only use manual input.",
+			},
+		})
+		return
+	}
+
+	soilType := req.SoilType
+	if soilType == "" {
+		soilType = "Black"
+	}
+	cropName := req.CropName
+	if cropName == "" {
+		cropName = "Wheat"
+	}
+
+	features := []float32{
+		float32(req.Temp), float32(req.Humidity), float32(req.Moisture),
+		float32(encodeSoil(soilType)), float32(encodeCrop(cropName)),
+		float32(req.N), float32(req.K), float32(req.P),
+	}
+
+	fertilizer, err := h.onnx.PredictFertilizer(features)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{"code": "INTERNAL_ERROR", "message": "Fertilizer model inference failed."},
+		})
+		return
+	}
+
+	defN := math.Max(0, 50-req.N)
+	defP := math.Max(0, 40-req.P)
+	defK := math.Max(0, 40-req.K)
+
+	resp := gin.H{
+		"fertilizer":   fertilizer,
+		"composition":  fertilizerComposition(fertilizer),
+		"deficiencies": gin.H{"N": defN, "P": defP, "K": defK},
+		"rationale":    "Recommended based on soil and crop requirements.",
+		"application":  applicationAdvice(fertilizer, cropName),
+	}
+	if defN > 0 {
+		resp["nitrogen_advice"] = fmt.Sprintf("Add %.1f kg/ha of nitrogen using Urea or similar.", defN)
+	}
+	if defP > 0 {
+		resp["phosphorus_advice"] = fmt.Sprintf("Add %.1f kg/ha of phosphorus using DAP or similar.", defP)
+	}
+	if defK > 0 {
+		resp["potassium_advice"] = fmt.Sprintf("Add %.1f kg/ha of potassium using Muriate of Potash or similar.", defK)
+	}
+
+	c.JSON(http.StatusOK, resp)
 }

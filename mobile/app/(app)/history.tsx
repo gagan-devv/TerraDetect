@@ -74,42 +74,115 @@ function WeeklyTrendChart() {
 
 function HistoryRow({ item }: { item: SensorReading }) {
     const date = new Date(item.timestamp)
-    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' })
     const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
     return (
-        <View className="bg-surface-container-low rounded-lg p-4 mb-3 flex-row items-center justify-between gap-3">
-            <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-11 h-11 rounded-full bg-surface-container-highest items-center justify-center">
-                    <Text className="text-lg">📋</Text>
-                </View>
-                <View className="flex-1">
-                    <Text className="font-headline font-bold text-on-surface text-sm">{dateStr}</Text>
-                    <Text className="font-label text-[11px] text-on-surface-variant uppercase tracking-wide">
-                        {timeStr}
-                    </Text>
+        <View className="bg-surface-container-low dark:bg-surface-container-low-dark rounded-lg p-3 mb-2">
+            {/* Header Row with Date/Time */}
+            <View className="flex-row items-center justify-between mb-3 pb-2 border-b border-outline-variant/20 dark:border-outline-variant-dark/20">
+                <View className="flex-row items-center gap-2">
+                    <View className="w-8 h-8 rounded-full bg-surface-container-highest dark:bg-surface-container-highest-dark items-center justify-center">
+                        <Text className="text-sm">📋</Text>
+                    </View>
+                    <View>
+                        <Text className="font-headline font-bold text-on-surface dark:text-on-surface-dark text-xs">
+                            {dateStr}
+                        </Text>
+                        <Text className="font-label text-[10px] text-on-surface-variant dark:text-on-surface-variant-dark">
+                            {timeStr}
+                        </Text>
+                    </View>
                 </View>
             </View>
-            {/* Sensor values */}
-            <View className="flex-row gap-3 items-center flex-wrap">
-                <View className="items-center">
-                    <Text className="text-[9px] font-label uppercase text-on-surface-variant mb-0.5">Temp</Text>
-                    <Text className="font-headline font-bold text-xs text-on-surface">{item.temperature.toFixed(1)}°C</Text>
+
+            {/* Data Grid - 2 columns */}
+            <View className="gap-2">
+                {/* Row 1: Temp & Humidity */}
+                <View className="flex-row gap-2">
+                    <View className="flex-1 bg-orange-50/50 dark:bg-orange-900/20 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            TEMP
+                        </Text>
+                        <Text className="font-headline font-black text-lg text-on-surface dark:text-on-surface-dark">
+                            {item.temperature.toFixed(1)}°C
+                        </Text>
+                    </View>
+                    <View className="flex-1 bg-blue-50/50 dark:bg-blue-900/20 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            HUMID
+                        </Text>
+                        <Text className="font-headline font-black text-lg text-on-surface dark:text-on-surface-dark">
+                            {item.humidity.toFixed(0)}%
+                        </Text>
+                    </View>
                 </View>
-                <View className="items-center">
-                    <Text className="text-[9px] font-label uppercase text-on-surface-variant mb-0.5">Humid</Text>
-                    <Text className="font-headline font-bold text-xs text-on-surface">{item.humidity.toFixed(0)}%</Text>
+
+                {/* Row 2: pH & EC */}
+                <View className="flex-row gap-2">
+                    <View className="flex-1 bg-tertiary-container/30 dark:bg-tertiary-container-dark/30 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            pH LEVEL
+                        </Text>
+                        <Text className="font-headline font-black text-lg text-tertiary dark:text-tertiary-dark">
+                            {item.ph.toFixed(1)}
+                        </Text>
+                    </View>
+                    <View className="flex-1 bg-secondary-container/30 dark:bg-secondary-container-dark/30 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            EC (mS/cm)
+                        </Text>
+                        <Text className="font-headline font-black text-lg text-secondary dark:text-secondary-dark">
+                            {((item as any).ec ?? 0.0).toFixed(1)}
+                        </Text>
+                    </View>
                 </View>
-                <View className="items-center">
-                    <Text className="text-[9px] font-label uppercase text-on-surface-variant mb-0.5">pH</Text>
-                    <Text className="font-headline font-bold text-xs text-tertiary">{item.ph.toFixed(1)}</Text>
+
+                {/* Row 3: NPK */}
+                <View className="flex-row gap-2">
+                    <View className="flex-1 bg-green-50/50 dark:bg-green-900/20 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            N
+                        </Text>
+                        <Text className="font-headline font-black text-base text-primary dark:text-primary-dark">
+                            {item.N.toFixed(0)}
+                        </Text>
+                    </View>
+                    <View className="flex-1 bg-purple-50/50 dark:bg-purple-900/20 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            P
+                        </Text>
+                        <Text className="font-headline font-black text-base text-secondary dark:text-secondary-dark">
+                            {item.P.toFixed(0)}
+                        </Text>
+                    </View>
+                    <View className="flex-1 bg-amber-50/50 dark:bg-amber-900/20 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            K
+                        </Text>
+                        <Text className="font-headline font-black text-base text-tertiary dark:text-tertiary-dark">
+                            {item.K.toFixed(0)}
+                        </Text>
+                    </View>
                 </View>
-                <View className="items-center">
-                    <Text className="text-[9px] font-label uppercase text-on-surface-variant mb-0.5">NPK</Text>
-                    <View className="flex-row gap-1">
-                        <Text className="text-[10px] font-bold text-primary">N:{item.N.toFixed(0)}</Text>
-                        <Text className="text-[10px] font-bold text-secondary">P:{item.P.toFixed(0)}</Text>
-                        <Text className="text-[10px] font-bold text-tertiary">K:{item.K.toFixed(0)}</Text>
+
+                {/* Row 4: Moisture & Rainfall */}
+                <View className="flex-row gap-2">
+                    <View className="flex-1 bg-cyan-50/50 dark:bg-cyan-900/20 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            MOISTURE
+                        </Text>
+                        <Text className="font-headline font-black text-lg text-on-surface dark:text-on-surface-dark">
+                            {(item.moisture ?? 0.0).toFixed(1)}%
+                        </Text>
+                    </View>
+                    <View className="flex-1 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-md p-2">
+                        <Text className="text-[9px] font-label uppercase text-on-surface-variant dark:text-on-surface-variant-dark tracking-wider mb-0.5">
+                            RAINFALL
+                        </Text>
+                        <Text className="font-headline font-black text-lg text-on-surface dark:text-on-surface-dark">
+                            {((item as any).rainfall ?? 0.0).toFixed(0)} mm
+                        </Text>
                     </View>
                 </View>
             </View>

@@ -55,8 +55,28 @@ func Auth(secretKey string) gin.HandlerFunc {
 			return
 		}
 
+		// Store token type for route-level checks
+		tokenType, _ := claims["token_type"].(string)
+		c.Set("token_type", tokenType)
 		c.Set("username", claims["username"])
 		c.Set("device_id", claims["device_id"])
+		c.Next()
+	}
+}
+
+// RequireUser blocks guest tokens from accessing user-only routes
+func RequireUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenType, exists := c.Get("token_type")
+		if !exists || tokenType == "guest" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": gin.H{
+					"code":    "FORBIDDEN",
+					"message": "Guest users cannot access this resource.",
+				},
+			})
+			return
+		}
 		c.Next()
 	}
 }

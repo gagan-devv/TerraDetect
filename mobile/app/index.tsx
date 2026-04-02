@@ -3,10 +3,12 @@ import { useAuthStore } from '../store/authStore';
 
 export default function Index() {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const isGuest = useAuthStore((state) => state.isGuest);
 
-  // Redirect to dashboard if authenticated, otherwise to landing
+  // Redirect based on authentication status
   if (accessToken) {
-    return <Redirect href="/(app)/dashboard" />;
+    // Guest users go to predict page, regular users go to dashboard
+    return <Redirect href={isGuest ? "/(app)/predict" : "/(app)/dashboard"} />;
   }
 
   return <Redirect href="/(auth)/landing" />;
