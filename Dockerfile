@@ -7,16 +7,20 @@ RUN apk add --no-cache \
     gcc \
     g++ \
     musl-dev \
-    wget \
+    curl \
     tar
 
 # Download and install ONNX Runtime
 WORKDIR /tmp
-RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz && \
-    tar -xzf onnxruntime-linux-x64-1.17.0.tgz && \
+RUN curl -L -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz && \
+    tar -xzf onnxruntime.tgz && \
+    mkdir -p /usr/local/include /usr/local/lib && \
     cp -r onnxruntime-linux-x64-1.17.0/include/* /usr/local/include/ && \
-    cp -r onnxruntime-linux-x64-1.17.0/lib/* /usr/local/lib/ && \
-    ldconfig /usr/local/lib
+    cp onnxruntime-linux-x64-1.17.0/lib/*.so* /usr/local/lib/ && \
+    rm -rf onnxruntime.tgz onnxruntime-linux-x64-1.17.0
+
+# Set library path
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # Set working directory
 WORKDIR /app
@@ -30,8 +34,8 @@ RUN go mod download
 # Copy backend source code
 COPY backend/ ./
 
-# Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -o app .
+# Build the application with CGO enabled
+RUN CGO_ENABLED=1 GOOS=linux CGO_LDFLAGS="-L/usr/local/lib" CGO_CFLAGS="-I/usr/local/include" go build -o app .
 
 # Runtime stage
 FROM alpine:latest
@@ -44,7 +48,9 @@ RUN apk add --no-cache \
 
 # Copy ONNX Runtime libraries from builder
 COPY --from=builder /usr/local/lib/libonnxruntime.so* /usr/local/lib/
-RUN ldconfig /usr/local/lib
+
+# Set library path
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 WORKDIR /app
 
