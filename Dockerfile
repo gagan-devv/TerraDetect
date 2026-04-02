@@ -44,6 +44,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libgomp1 \
+    libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy ONNX Runtime libraries from builder
@@ -52,7 +53,7 @@ COPY --from=builder /usr/local/lib/libonnxruntime.so* /usr/local/lib/
 # Set library path
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
-WORKDIR /app
+WORKDIR /backend
 
 # Copy the binary from builder
 COPY --from=builder /app/app ./app
